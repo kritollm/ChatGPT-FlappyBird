@@ -8,7 +8,7 @@ const buffer2Canvas = document.createElement("canvas");
 const buffer2Context = buffer2Canvas.getContext("2d");
 
 const birdSprite = new Image();
-birdSprite.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAMAAAAMCGV4AAAABlBMVEUAAAD///+l2Z/dAAAAAnRSTlMA/1uRIrUAAABkSURBVHja7NChDcAwDAMxC++9o9Nbi/CvI8a4WZu6BZw6AAAAAElFTkSuQmCC";
+birdSprite.src = "DALL·E 2023-03-12 19.09.26.png";
 
 const bird = {
   x: 50,
