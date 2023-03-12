@@ -8,7 +8,6 @@ const buffer2Canvas = document.createElement('canvas');
 const buffer2Context = buffer2Canvas.getContext('2d');
 
 const birdSprite = new Image();
-birdSprite.src = 'DALL·E 2023-03-12 19.09.26.png';
 
 const bird = {
   x: 50,
@@ -23,6 +22,7 @@ const bird = {
 
 const pipeWidth = 50;
 const pipeGap = 100;
+
 const pipeSpeed = 2;
 const pipeColor = 'green';
 const bufferWidth = canvas.width + pipeWidth * 2;
@@ -104,6 +104,18 @@ drawPipes(buffer2Context, 0);
 
 canvas.addEventListener('mousedown', handleInput);
 
-birdSprite.onload = function () {
+birdSprite.width = 50;
+birdSprite.height = 50;
+birdSprite.style.width = '50px';
+birdSprite.style.height = '50px';
+birdSprite.onload = () => {
+  console.log('gameLoop');
   gameLoop();
 };
+birdSprite.onerror = (e) => {
+  console.log('Det skjedde en feil under lasting av bildet');
+  console.log(e);
+};
+console.log(birdSprite);
+birdSprite.src = 'bird.png';
+//gameLoop();
