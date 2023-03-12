@@ -117,5 +117,6 @@ birdSprite.onerror = (e) => {
   console.log(e);
 };
 console.log(birdSprite);
-birdSprite.src = 'bird.png';
+birdSprite.src =
+  'https://stackblitz.com/files/typescript-esnhgy/github/kritollm/ChatGPT-FlappyBird/main/DALL·E 2023-03-12 19.09.26.png';
 //gameLoop();
