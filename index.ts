@@ -1,3 +1,8 @@
+import seedrandom from 'seedrandom';
+
+const seed = 'min-seed-verdi';
+const prng = seedrandom(seed);
+
 const canvas = <HTMLCanvasElement>document.getElementById('canvas');
 const context = canvas.getContext('2d');
 
@@ -12,8 +17,8 @@ const birdSprite = new Image();
 const bird = {
   x: 50,
   y: 250,
-  width: 30,
-  height: 30,
+  width: 50,
+  height: 50,
   vy: 0,
   gravity: 0.1,
   jumpPower: -3,
@@ -25,19 +30,27 @@ const pipeGap = 100;
 
 const pipeSpeed = 2;
 const pipeColor = 'green';
-const bufferWidth = canvas.width + pipeWidth * 2;
 
 const buffers = [buffer1Context, buffer2Context];
 let currentBufferIndex = 0;
-let currentBufferX = 0;
+let pipes = [];
+
+function rectsCollide(rect1, rect2) {
+  return (
+    rect1.x < rect2.x + rect2.width &&
+    rect1.x + rect1.width > rect2.x &&
+    rect1.y < rect2.y + rect2.height &&
+    rect1.y + rect1.height > rect2.y
+  );
+}
 
 const drawBird = () => {
   context.drawImage(
     birdSprite,
     bird.spriteIndex * bird.width,
     0,
-    bird.width,
-    bird.height,
+    birdSprite.width,
+    birdSprite.height,
     bird.x,
     bird.y,
     bird.width,
@@ -45,36 +58,101 @@ const drawBird = () => {
   );
 };
 
-const drawPipes = (bufferContext, startX) => {
-  let pipeX = startX;
-  while (pipeX < startX + bufferWidth) {
-    bufferContext.fillStyle = pipeColor;
-    bufferContext.fillRect(pipeX, 0, pipeWidth, pipeGap);
-    bufferContext.fillRect(
-      pipeX,
-      pipeGap + pipeWidth,
-      pipeWidth,
-      canvas.height - pipeGap - pipeWidth
-    );
-    pipeX += pipeWidth + canvas.width / 2;
+function getRandomGapSize() {
+  // Velg et tilfeldig tall mellom 50 og halvparten av canvas-høyden for gap-størrelse
+  return Math.min(Math.floor(prng() * 50 + 200), 180);
+}
+
+const maxGapDistance = 200; // Angir maksimal avstand mellom gapene
+
+function getRandomPipePosition() {
+  // Velg et tilfeldig tall mellom 50 og halvparten av canvas-høyden for øvre hindringens plassering
+  const lastPipe = pipes[pipes.length - 1];
+  const minUpperPipeY = lastPipe ? lastPipe.upperPipeY + maxGapDistance : 50;
+  // Beregn plasseringen av nedre hindring basert på gap-størrelsen og øvre hindrings plassering
+  const gapSize = getRandomGapSize();
+  const maxUpperPipeY = canvas.height / 2 - gapSize - maxGapDistance;
+  const upperPipeY =
+    Math.floor(prng() * (maxUpperPipeY - minUpperPipeY + 1)) + minUpperPipeY;
+
+  const lowerPipeY = upperPipeY + gapSize + pipeWidth;
+
+  return [upperPipeY, lowerPipeY];
+}
+
+function updatePipes() {
+  pipes = pipes.filter((pipe) => pipe.x > -pipeWidth);
+  const lastPipe = pipes[pipes.length - 1];
+  if (lastPipe && lastPipe.x < canvas.width) {
+    const [upperPipeY, lowerPipeY] = getRandomPipePosition();
+    pipes.push({
+      x: lastPipe.x + pipeWidth + canvas.width / 2,
+      upperPipeY,
+      lowerPipeY,
+    });
+  } else if (!lastPipe) {
+    const [upperPipeY, lowerPipeY] = getRandomPipePosition();
+    pipes.push({ x: canvas.width, upperPipeY, lowerPipeY });
   }
-};
+}
+let gameOver = false;
 
 const updateBuffers = () => {
-  currentBufferX -= pipeSpeed;
-  if (currentBufferX < -bufferWidth) {
-    currentBufferIndex = (currentBufferIndex + 1) % buffers.length;
-    currentBufferX = 0;
-    const nextBufferContext = buffers[currentBufferIndex];
-    nextBufferContext.clearRect(0, 0, bufferWidth, canvas.height);
-    drawPipes(nextBufferContext, currentBufferX);
-  }
+  currentBufferIndex = (currentBufferIndex + 1) % buffers.length;
+
+  const nextBufferContext = buffers[currentBufferIndex];
+  nextBufferContext.clearRect(0, 0, canvas.width, canvas.height);
+  updatePipes();
+  const birdRect = {
+    x: bird.x,
+    y: bird.y,
+    width: bird.width,
+    height: bird.height,
+  };
+
+  gameOver = pipes.some((pipe) => {
+    const upperPipeRect = {
+      x: pipe.x,
+      y: 0,
+      width: pipeWidth,
+      height: pipe.upperPipeY,
+    };
+    const lowerPipeRect = {
+      x: pipe.x,
+      y: pipe.lowerPipeY,
+      width: pipeWidth,
+      height: canvas.height - pipe.lowerPipeY,
+    };
+    if (
+      rectsCollide(birdRect, upperPipeRect) ||
+      rectsCollide(birdRect, lowerPipeRect) ||
+      bird.y < 0 ||
+      bird.y + bird.height > canvas.height
+    ) {
+      console.log('Game over');
+      return true;
+    }
+    return false;
+  });
+  pipes.forEach((pipe) => {
+    pipe.x -= pipeSpeed;
+    nextBufferContext.fillStyle = pipeColor;
+    nextBufferContext.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
+    nextBufferContext.fillRect(
+      pipe.x,
+      pipe.lowerPipeY,
+      pipeWidth,
+      canvas.height - pipe.lowerPipeY
+    );
+  });
+  // Gjenta loopen
+  requestAnimationFrame(gameLoop);
 };
 
 const updateBird = () => {
   bird.vy += bird.gravity;
   bird.y += bird.vy;
-  bird.spriteIndex = bird.vy >= 0 ? 1 : 0;
+  bird.spriteIndex = 0;
 };
 
 const handleInput = (event) => {
@@ -82,32 +160,38 @@ const handleInput = (event) => {
 };
 
 const gameLoop = () => {
+  // Oppdater den aktive bufferen og tegn den på skjermen
+  const activeBufferContext = buffers[currentBufferIndex];
   context.clearRect(0, 0, canvas.width, canvas.height);
-  updateBuffers();
-  context.drawImage(buffers[currentBufferIndex].canvas, -currentBufferX, 0);
+  context.drawImage(activeBufferContext.canvas, 0, 0);
   updateBird();
   drawBird();
-  requestAnimationFrame(gameLoop);
+
+  // Oppdater fuglen og tegn den på skjermen
+
+  updateBuffers();
 };
 
-canvas.width = window.innerWidth - pipeWidth * 2;
-canvas.height = window.innerHeight;
+// canvas.width = window.innerWidth - pipeWidth * 2;
+// canvas.height = window.innerHeight;
 
-buffer1Canvas.width = bufferWidth;
+const pipePositions = [];
+
+for (let i = 0; i < canvas.width; i += pipeWidth + canvas.width / 2) {
+  const [upperPipeY, lowerPipeY] = getRandomPipePosition();
+  pipePositions.push([i, upperPipeY, lowerPipeY]);
+}
+
+buffer1Canvas.width = canvas.width;
 buffer1Canvas.height = canvas.height;
-drawPipes(buffer1Context, 0);
 
-buffer2Canvas.width = bufferWidth;
-
+buffer2Canvas.width = canvas.width;
 buffer2Canvas.height = canvas.height;
-drawPipes(buffer2Context, 0);
 
 canvas.addEventListener('mousedown', handleInput);
 
-birdSprite.width = 50;
-birdSprite.height = 50;
-birdSprite.style.width = '50px';
-birdSprite.style.height = '50px';
+birdSprite.width = 500;
+birdSprite.height = 500;
 birdSprite.onload = () => {
   console.log('gameLoop');
   gameLoop();
@@ -118,5 +202,5 @@ birdSprite.onerror = (e) => {
 };
 console.log(birdSprite);
 birdSprite.src =
-  'https://stackblitz.com/files/typescript-esnhgy/github/kritollm/ChatGPT-FlappyBird/main/DALL·E 2023-03-12 19.09.26.png';
+  'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/bird.png';
 //gameLoop();
