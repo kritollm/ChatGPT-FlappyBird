@@ -134,6 +134,7 @@ const updateBuffers = () => {
     }
     return false;
   });
+  if(gameOver) return;
   pipes.forEach((pipe) => {
     pipe.x -= pipeSpeed;
     nextBufferContext.fillStyle = pipeColor;
