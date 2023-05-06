@@ -1,14 +1,41 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Flappy Bird</title>
-    <style>
-      canvas {
-        border: 1px solid black;
-      }
-    </style>
-  </head>
-  <body>
+<html lang="en">
+<head>
+  <title>Flappy Bird</title>
+  <style>
+    #gameContainer {
+      position: relative;
+    }
+    #canvas {
+      display: block;
+    }
+    #restartButton {
+      position: absolute;
+      z-index: 1000;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 24px;
+      background-color: #4CAF50;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+    }
+    #restartButton:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
     <canvas id="canvas" width="390" height="844"></canvas>
-  </body>
+     <button id="restartButton">Restart Game</button>
+  </div>
+  <script>
+    // JavaScript-koden din her
+  </script>
+</body>
 </html>

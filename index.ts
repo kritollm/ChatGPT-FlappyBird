@@ -41,6 +41,17 @@ function increaseDifficulty() {
   }
 }
 
+const restartButton = document.getElementById('restartButton');
+restartButton.addEventListener('click', () => {
+  restartButton.style.display = 'none';
+  resetGame();
+});
+
+function showRestartButton() {
+  console.log("ResetButton");
+  restartButton.style.display = 'block';
+}
+
 function resetGame() {
   bird.lives = 3;
   bird.y = canvas.height / 2;
@@ -181,15 +192,6 @@ const handleInput = (event) => {
 };
 
 const gameLoop = () => {
-  if (gameOver) {
-    if (confirm('Game over! Do you want to restart?')) {
-      resetGame();
-      return;
-    } else {
-      gameOver = false;
-    }
-  }
-
   context.clearRect(0, 0, canvas.width, canvas.height);
   const elapsedTime = Date.now() - startTime;
   updateDifficulty(elapsedTime);
@@ -240,6 +242,8 @@ const gameLoop = () => {
 
   if (!gameOver) {
     requestAnimationFrame(gameLoop);
+  }else{
+    showRestartButton();
   }
 };
 
