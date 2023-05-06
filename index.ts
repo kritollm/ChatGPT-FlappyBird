@@ -72,11 +72,24 @@ function rectsCollide(rect1, rect2) {
 }
 
 let blinkInterval = 200; // Kontrollerer blinkhastigheten
+function drawBaseBird() {
+  context.drawImage(
+    birdSprite,
+    bird.spriteIndex * bird.width,
+    0,
+    birdSprite.width,
+    birdSprite.height,
+    bird.x,
+    bird.y,
+    bird.width,
+    bird.height
+  );
+}
 
 function drawBlinkingBird() {
   context.save();
   context.globalAlpha = Math.sin(Date.now() / blinkInterval) * 0.5 + 0.5;
-  drawBird();
+  drawBaseBird();
   context.restore();
 }
 
@@ -84,17 +97,7 @@ const drawBird = () => {
   if (bird.invincible) {
     drawBlinkingBird();
   } else {
-    context.drawImage(
-      birdSprite,
-      bird.spriteIndex * bird.width,
-      0,
-      birdSprite.width,
-      birdSprite.height,
-      bird.x,
-      bird.y,
-      bird.width,
-      bird.height
-    );
+    drawBaseBird();
   }
 };
 
