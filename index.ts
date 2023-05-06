@@ -3,7 +3,7 @@ import seedrandom from 'seedrandom';
 const seed = 'min-seed-verdi';
 const prng = seedrandom(seed);
 
-const canvas = document.getElementById('canvas');
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const context = canvas.getContext('2d');
 
 const birdSprite = new Image();
@@ -22,14 +22,45 @@ const bird = {
 };
 
 const pipeWidth = 50;
-const pipeGap = 100;
-const pipeSpeed = 2;
+let pipeGap = 100;
+let pipeSpeed = 2;
 const pipeColor = 'green';
 
 let pipes = [];
 let score = 0;
 let startTime = Date.now();
 let gameOver = false;
+
+let difficultyTimer = 0;
+let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+
+function increaseDifficulty() {
+  pipeSpeed += 0.5; // Øk rørhastigheten
+  if (pipeGap > 75) {
+    pipeGap -= 5; // Reduser avstanden mellom rørene hvis den er større enn 75
+  }
+}
+
+function resetGame() {
+  bird.lives = 3;
+  bird.y = canvas.height / 2;
+  bird.vy = 0;
+  bird.invincible = false;
+  pipes = [];
+  startTime = Date.now();
+  difficultyTimer = 0;
+  pipeSpeed = 2;
+  pipeGap = 100;
+  score = 0;
+  gameLoop();
+}
+
+const updateDifficulty = (elapsedTime) => {
+  if (elapsedTime - difficultyTimer >= difficultyInterval) {
+    increaseDifficulty();
+    difficultyTimer = elapsedTime;
+  }
+};
 
 function rectsCollide(rect1, rect2) {
   return (
@@ -40,18 +71,31 @@ function rectsCollide(rect1, rect2) {
   );
 }
 
+let blinkInterval = 200; // Kontrollerer blinkhastigheten
+
+function drawBlinkingBird() {
+  context.save();
+  context.globalAlpha = Math.sin(Date.now() / blinkInterval) * 0.5 + 0.5;
+  drawBird();
+  context.restore();
+}
+
 const drawBird = () => {
-  context.drawImage(
-    birdSprite,
-    bird.spriteIndex * bird.width,
-    0,
-    birdSprite.width,
-    birdSprite.height,
-    bird.x,
-    bird.y,
-    bird.width,
-    bird.height
-  );
+  if (bird.invincible) {
+    drawBlinkingBird();
+  } else {
+    context.drawImage(
+      birdSprite,
+      bird.spriteIndex * bird.width,
+      0,
+      birdSprite.width,
+      birdSprite.height,
+      bird.x,
+      bird.y,
+      bird.width,
+      bird.height
+    );
+  }
 };
 
 function getRandomGapSize() {
@@ -134,6 +178,15 @@ const handleInput = (event) => {
 };
 
 const gameLoop = () => {
+  if (gameOver) {
+    if (confirm('Game over! Do you want to restart?')) {
+      resetGame();
+      return;
+    } else {
+      gameOver = false;
+    }
+  }
+
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   updateBird();
@@ -192,7 +245,7 @@ birdSprite.width = 500;
 birdSprite.height = 500;
 birdSprite.onload = () => {
   console.log('gameLoop');
-  gameLoop();
+  resetGame();
 };
 birdSprite.onerror = (e) => {
   console.log('Det skjedde en feil under lasting av bildet');
