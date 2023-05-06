@@ -188,7 +188,8 @@ const gameLoop = () => {
   }
 
   context.clearRect(0, 0, canvas.width, canvas.height);
-
+  const elapsedTime = Date.now() - startTime;
+  updateDifficulty(elapsedTime);
   updateBird();
   drawBird();
   updatePipes();
