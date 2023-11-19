@@ -38,7 +38,10 @@ let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
 
 // Definerer lydeffekten for flakse-handlingen
 const flapSound = new Howl({
-  src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
+  src: [
+    'https://github.com/kritollm/ChatGPT-FlappyBird/blob/main/sound/244978_3008343-lq.mp3',
+  ],
+  //src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
 });
 
 // Funksjon for å håndtere flakse-handlingen
@@ -63,7 +66,7 @@ restartButton.addEventListener('click', () => {
 });
 
 function showRestartButton() {
-  console.log("ResetButton");
+  console.log('ResetButton');
   restartButton.style.display = 'block';
 }
 
@@ -204,6 +207,7 @@ const updateBird = () => {
 
 const handleInput = (event) => {
   bird.vy = bird.jumpPower;
+  flap();
 };
 
 const gameLoop = () => {
@@ -257,7 +261,7 @@ const gameLoop = () => {
 
   if (!gameOver) {
     requestAnimationFrame(gameLoop);
-  }else{
+  } else {
     showRestartButton();
   }
 };
