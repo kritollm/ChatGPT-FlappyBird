@@ -1,4 +1,6 @@
 import seedrandom from 'seedrandom';
+// Importerer Howler
+import { Howl, Howler } from 'howler';
 
 const seed = 'min-seed-verdi';
 const prng = seedrandom(seed);
@@ -33,6 +35,19 @@ let gameOver = false;
 
 let difficultyTimer = 0;
 let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+
+// Definerer lydeffekten for flakse-handlingen
+const flapSound = new Howl({
+  src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
+});
+
+// Funksjon for å håndtere flakse-handlingen
+function flap() {
+  // Kode for å få fuglen til å flakse
+
+  // Spiller av lydeffekten
+  flapSound.play();
+}
 
 function increaseDifficulty() {
   pipeSpeed += 0.5; // Øk rørhastigheten
