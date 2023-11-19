@@ -37,19 +37,17 @@ let difficultyTimer = 0;
 let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
 
 // Definerer lydeffekten for flakse-handlingen
-const flapSound = new Howl({
+let flapSound = new Howl({
   src: [
-    'https://github.com/kritollm/ChatGPT-FlappyBird/blob/main/sound/244978_3008343-lq.mp3',
+    'https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/sound/244978_3008343-lq.mp3',
   ],
   //src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
 });
 
 // Funksjon for å håndtere flakse-handlingen
 function flap() {
-  // Kode for å få fuglen til å flakse
-
   // Spiller av lydeffekten
-  flapSound.play();
+  flapSound.play && flapSound.play();
 }
 
 function increaseDifficulty() {
