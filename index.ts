@@ -277,4 +277,4 @@ birdSprite.onerror = (e) => {
   console.log(e);
 };
 birdSprite.src =
-  'https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/gfx/bird.png';
+  'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/bird.png';
