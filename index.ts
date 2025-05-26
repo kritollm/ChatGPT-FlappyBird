@@ -30,11 +30,58 @@ const pipeColor = 'green';
 
 let pipes = [];
 let score = 0;
+let highScore = Number(localStorage.getItem('highScore')) || 0;
 let startTime = Date.now();
 let gameOver = false;
 
+interface Star {
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+}
+
+const stars: Star[] = [];
+const STAR_COUNT = 50;
+
 let difficultyTimer = 0;
 let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+
+function initStars() {
+  stars.length = 0;
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: prng() * canvas.width,
+      y: prng() * canvas.height,
+      size: prng() * 2 + 1,
+      speed: prng() * 0.5 + 0.2,
+    });
+  }
+}
+
+function updateStars() {
+  stars.forEach((star) => {
+    star.x -= star.speed;
+    if (star.x < 0) {
+      star.x = canvas.width;
+      star.y = prng() * canvas.height;
+    }
+  });
+}
+
+function drawStars() {
+  context.fillStyle = 'white';
+  stars.forEach((star) => {
+    context.fillRect(star.x, star.y, star.size, star.size);
+  });
+}
+
+function updateHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('highScore', highScore.toString());
+  }
+}
 
 // Definerer lydeffekten for flakse-handlingen
 let flapSound = new Howl({
@@ -43,6 +90,19 @@ let flapSound = new Howl({
   ],
   //src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
 });
+
+let audioCtx: AudioContext | null = null;
+function playScoreBeep() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  const osc = audioCtx.createOscillator();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  osc.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
 
 // Funksjon for å håndtere flakse-handlingen
 function flap() {
@@ -69,9 +129,11 @@ function showRestartButton() {
 }
 
 function resetGame() {
+  updateHighScore();
   bird.lives = 3;
   bird.y = canvas.height / 2;
   bird.vy = 0;
+  bird.gravity = 0.1;
   bird.invincible = false;
   pipes = [];
   startTime = Date.now();
@@ -79,6 +141,8 @@ function resetGame() {
   pipeSpeed = 2;
   pipeGap = 100;
   score = 0;
+  initStars();
+  gameOver = false;
   gameLoop();
 }
 
@@ -156,16 +220,23 @@ function updatePipes() {
       x: lastPipe.x + pipeWidth + canvas.width / 2,
       upperPipeY,
       lowerPipeY,
+      scored: false,
     });
   } else if (!lastPipe) {
     const [upperPipeY, lowerPipeY] = getRandomPipePosition();
-    pipes.push({ x: canvas.width, upperPipeY, lowerPipeY });
+    pipes.push({ x: canvas.width, upperPipeY, lowerPipeY, scored: false });
   }
 }
 
 function drawPipes() {
   pipes.forEach((pipe) => {
     pipe.x -= pipeSpeed;
+    if (!pipe.scored && pipe.x + pipeWidth < bird.x) {
+      score += 1;
+      pipe.scored = true;
+      playScoreBeep();
+      updateHighScore();
+    }
     context.fillStyle = pipeColor;
     context.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
     context.fillRect(
@@ -182,8 +253,17 @@ function drawHUD() {
   context.fillStyle = 'black';
   context.fillText(`Score: ${score}`, 10, 30);
   context.fillText(`Lives: ${bird.lives}`, 10, 60);
+  context.fillText(`High: ${highScore}`, canvas.width - 120, 30);
   const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
   context.fillText(`Time: ${elapsedTime}s`, 10, 90);
+}
+
+function drawGameOver() {
+  context.font = '48px Arial';
+  context.fillStyle = 'red';
+  context.textAlign = 'center';
+  context.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 100);
+  context.textAlign = 'start';
 }
 
 function handleNewLife() {
@@ -210,6 +290,8 @@ const handleInput = (event) => {
 
 const gameLoop = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
+  updateStars();
+  drawStars();
   const elapsedTime = Date.now() - startTime;
   updateDifficulty(elapsedTime);
   updateBird();
@@ -260,16 +342,31 @@ const gameLoop = () => {
   if (!gameOver) {
     requestAnimationFrame(gameLoop);
   } else {
+    drawGameOver();
+    updateHighScore();
     showRestartButton();
   }
 };
 
 canvas.addEventListener('mousedown', handleInput);
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    handleInput(e);
+    bird.gravity = 0.05;
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    bird.gravity = 0.1;
+  }
+});
 
 birdSprite.width = 500;
 birdSprite.height = 500;
 birdSprite.onload = () => {
   console.log('gameLoop');
+  initStars();
   resetGame();
 };
 birdSprite.onerror = (e) => {
