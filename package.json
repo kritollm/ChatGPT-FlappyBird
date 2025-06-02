@@ -2,6 +2,9 @@
   "name": "typescript",
   "version": "0.0.0",
   "private": true,
+  "scripts": {
+    "test": "npx tsc -p tsconfig.test.json && node dist/automation.test.js"
+  },
   "dependencies": {
     "howler": "^2.2.4",
     "seedrandom": "3.0.5"

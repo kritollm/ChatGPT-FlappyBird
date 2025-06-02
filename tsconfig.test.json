@@ -4,5 +4,6 @@
     "module": "commonjs",
     "lib": ["es2019"],
     "outDir": "dist"
-  }
+  },
+  "files": ["automation.ts", "automation.test.ts"]
 }

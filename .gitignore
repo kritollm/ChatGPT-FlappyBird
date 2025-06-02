@@ -1,0 +1,5 @@
+node_modules/
+dist/
+automation.js
+automation.test.js
+package-lock.json
