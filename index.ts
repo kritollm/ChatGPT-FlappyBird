@@ -28,15 +28,21 @@ const bird = {
   rotation: 0,
   hasShield: false,
   scoreMultiplier: 1,
+  slowMoActive: false,
+  magnetActive: false,
+  trail: [] as Array<{x: number, y: number, alpha: number}>,
 };
 
 const pipeWidth = 50;
 let pipeGap = 100;
 let pipeSpeed = 2;
+let basePipeSpeed = 2;
 const pipeColor = 'green';
 
 let pipes = [];
 let score = 0;
+let coins = 0;
+let totalCoins = 0;
 let highScore = Number(localStorage.getItem('highScore')) || 0;
 let startTime = Date.now();
 let gameOver = false;
@@ -44,6 +50,14 @@ let gameStarted = false;
 let combo = 0;
 let maxCombo = 0;
 let comboTimer = 0;
+
+// Screen shake
+let screenShake = 0;
+let screenShakeX = 0;
+let screenShakeY = 0;
+
+// Music tracks
+let currentTrack = 0;
 
 interface Star {
   x: number;
@@ -63,7 +77,7 @@ let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
 interface PowerUp {
   x: number;
   y: number;
-  type: 'shield' | 'multiplier';
+  type: 'shield' | 'multiplier' | 'slowmo' | 'magnet' | 'star';
   size: number;
   collected: boolean;
 }
@@ -71,6 +85,118 @@ interface PowerUp {
 const powerUps: PowerUp[] = [];
 let powerUpSpawnTimer = 0;
 const powerUpSpawnInterval = 10000; // Spawn every 10 seconds
+
+// Coin system
+interface Coin {
+  x: number;
+  y: number;
+  size: number;
+  collected: boolean;
+  rotation: number;
+}
+
+const coinsList: Coin[] = [];
+let coinSpawnTimer = 0;
+const coinSpawnInterval = 3000; // Spawn every 3 seconds
+
+// Achievement system
+interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  icon: string;
+}
+
+const achievements: Achievement[] = [
+  { id: 'first_score', name: 'First Point', description: 'Score your first point', unlocked: false, icon: '🎯' },
+  { id: 'score_10', name: 'Getting Good', description: 'Score 10 points', unlocked: false, icon: '🔥' },
+  { id: 'score_25', name: 'Pro Player', description: 'Score 25 points', unlocked: false, icon: '⭐' },
+  { id: 'score_50', name: 'Legend', description: 'Score 50 points', unlocked: false, icon: '👑' },
+  { id: 'combo_5', name: 'Combo Master', description: 'Get a 5x combo', unlocked: false, icon: '💥' },
+  { id: 'combo_10', name: 'Unstoppable', description: 'Get a 10x combo', unlocked: false, icon: '🚀' },
+  { id: 'shield_save', name: 'Saved by Shield', description: 'Shield saves you from death', unlocked: false, icon: '🛡️' },
+  { id: 'coins_50', name: 'Coin Collector', description: 'Collect 50 coins total', unlocked: false, icon: '💰' },
+  { id: 'survive_60', name: 'Survivor', description: 'Survive for 60 seconds', unlocked: false, icon: '⏱️' },
+];
+
+let achievementQueue: Achievement[] = [];
+let achievementDisplayTimer = 0;
+
+function loadAchievements() {
+  const stored = localStorage.getItem('achievements');
+  if (stored) {
+    const savedAchievements = JSON.parse(stored);
+    achievements.forEach(achievement => {
+      const saved = savedAchievements.find((a: any) => a.id === achievement.id);
+      if (saved) achievement.unlocked = saved.unlocked;
+    });
+  }
+}
+
+function saveAchievements() {
+  localStorage.setItem('achievements', JSON.stringify(achievements));
+}
+
+function unlockAchievement(id: string) {
+  const achievement = achievements.find(a => a.id === id);
+  if (achievement && !achievement.unlocked) {
+    achievement.unlocked = true;
+    achievementQueue.push(achievement);
+    saveAchievements();
+    createParticles(canvas.width / 2, 100, 30, '#FFD700');
+  }
+}
+
+function checkAchievements() {
+  if (score >= 1) unlockAchievement('first_score');
+  if (score >= 10) unlockAchievement('score_10');
+  if (score >= 25) unlockAchievement('score_25');
+  if (score >= 50) unlockAchievement('score_50');
+  if (combo >= 5) unlockAchievement('combo_5');
+  if (combo >= 10) unlockAchievement('combo_10');
+  if (totalCoins >= 50) unlockAchievement('coins_50');
+  const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+  if (elapsedTime >= 60) unlockAchievement('survive_60');
+}
+
+function drawAchievementNotification() {
+  if (achievementQueue.length > 0 && achievementDisplayTimer === 0) {
+    achievementDisplayTimer = 180; // 3 seconds
+  }
+
+  if (achievementDisplayTimer > 0) {
+    const achievement = achievementQueue[0];
+    const alpha = achievementDisplayTimer < 30 ? achievementDisplayTimer / 30 : 1;
+
+    context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    context.fillRect(canvas.width / 2 - 150, 200, 300, 80);
+
+    context.strokeStyle = '#FFD700';
+    context.lineWidth = 3;
+    context.strokeRect(canvas.width / 2 - 150, 200, 300, 80);
+
+    context.font = 'bold 20px Arial';
+    context.fillStyle = '#FFD700';
+    context.textAlign = 'center';
+    context.fillText('🏆 ACHIEVEMENT UNLOCKED!', canvas.width / 2, 225);
+
+    context.font = '16px Arial';
+    context.fillStyle = 'white';
+    context.fillText(`${achievement.icon} ${achievement.name}`, canvas.width / 2, 250);
+    context.font = '12px Arial';
+    context.fillText(achievement.description, canvas.width / 2, 270);
+
+    context.restore();
+
+    achievementDisplayTimer--;
+    if (achievementDisplayTimer === 0) {
+      achievementQueue.shift();
+    }
+  }
+}
 
 // Particle system
 interface Particle {
@@ -99,6 +225,135 @@ function createParticles(x: number, y: number, count: number, color: string) {
       size: prng() * 3 + 1,
     });
   }
+}
+
+// Screen shake
+function triggerScreenShake(intensity: number) {
+  screenShake = intensity;
+}
+
+function updateScreenShake() {
+  if (screenShake > 0) {
+    screenShakeX = (prng() - 0.5) * screenShake;
+    screenShakeY = (prng() - 0.5) * screenShake;
+    screenShake *= 0.9;
+    if (screenShake < 0.1) {
+      screenShake = 0;
+      screenShakeX = 0;
+      screenShakeY = 0;
+    }
+  }
+}
+
+// Trail effect
+function updateBirdTrail() {
+  bird.trail.push({
+    x: bird.x + bird.width / 2,
+    y: bird.y + bird.height / 2,
+    alpha: 1,
+  });
+
+  // Fade and remove old trail
+  for (let i = bird.trail.length - 1; i >= 0; i--) {
+    bird.trail[i].alpha -= 0.05;
+    if (bird.trail[i].alpha <= 0) {
+      bird.trail.splice(i, 1);
+    }
+  }
+
+  // Limit trail length
+  if (bird.trail.length > 15) {
+    bird.trail.shift();
+  }
+}
+
+function drawBirdTrail() {
+  bird.trail.forEach((point, index) => {
+    context.save();
+    context.globalAlpha = point.alpha * 0.6;
+    context.fillStyle = '#00FFFF';
+    const size = (index / bird.trail.length) * 8;
+    context.fillRect(point.x - size / 2, point.y - size / 2, size, size);
+    context.restore();
+  });
+}
+
+// Coin system
+function spawnCoin() {
+  const y = prng() * (canvas.height - 200) + 100;
+  coinsList.push({
+    x: canvas.width,
+    y,
+    size: 20,
+    collected: false,
+    rotation: 0,
+  });
+}
+
+function updateCoins() {
+  const effectiveSpeed = bird.slowMoActive ? pipeSpeed * 0.5 : pipeSpeed;
+
+  for (let i = coinsList.length - 1; i >= 0; i--) {
+    const coin = coinsList[i];
+    coin.x -= effectiveSpeed;
+    coin.rotation += 0.1;
+
+    // Magnet effect
+    if (bird.magnetActive && !coin.collected) {
+      const dx = bird.x + bird.width / 2 - coin.x;
+      const dy = bird.y + bird.height / 2 - coin.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < 150) {
+        coin.x += dx * 0.1;
+        coin.y += dy * 0.1;
+      }
+    }
+
+    // Check collision
+    if (
+      !coin.collected &&
+      Math.abs(bird.x + bird.width / 2 - coin.x) < 30 &&
+      Math.abs(bird.y + bird.height / 2 - coin.y) < 30
+    ) {
+      coin.collected = true;
+      coins += 1;
+      totalCoins += 1;
+      createParticles(coin.x, coin.y, 10, '#FFD700');
+      coinsList.splice(i, 1);
+    } else if (coin.x < -coin.size) {
+      coinsList.splice(i, 1);
+    }
+  }
+}
+
+function drawCoins() {
+  coinsList.forEach((coin) => {
+    if (coin.collected) return;
+
+    context.save();
+    context.translate(coin.x, coin.y);
+    context.rotate(coin.rotation);
+
+    // Draw coin
+    context.fillStyle = '#FFD700';
+    context.beginPath();
+    context.arc(0, 0, coin.size / 2, 0, Math.PI * 2);
+    context.fill();
+
+    context.strokeStyle = '#FF8C00';
+    context.lineWidth = 2;
+    context.stroke();
+
+    // Dollar sign
+    context.fillStyle = '#FF8C00';
+    context.font = 'bold 14px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('$', 0, 0);
+
+    context.restore();
+  });
 }
 
 function updateParticles() {
@@ -295,7 +550,8 @@ function saveHighScore(score: number, combo: number) {
 
 // Power-up functions
 function spawnPowerUp() {
-  const type = prng() > 0.5 ? 'shield' : 'multiplier';
+  const types: Array<'shield' | 'multiplier' | 'slowmo' | 'magnet' | 'star'> = ['shield', 'multiplier', 'slowmo', 'magnet', 'star'];
+  const type = types[Math.floor(prng() * types.length)];
   const y = prng() * (canvas.height - 200) + 100;
   powerUps.push({
     x: canvas.width,
@@ -307,9 +563,11 @@ function spawnPowerUp() {
 }
 
 function updatePowerUps() {
+  const effectiveSpeed = bird.slowMoActive ? pipeSpeed * 0.5 : pipeSpeed;
+
   for (let i = powerUps.length - 1; i >= 0; i--) {
     const powerUp = powerUps[i];
-    powerUp.x -= pipeSpeed;
+    powerUp.x -= effectiveSpeed;
 
     // Check collision with bird
     if (
@@ -318,15 +576,29 @@ function updatePowerUps() {
       Math.abs(bird.y + bird.height / 2 - powerUp.y) < powerUp.size
     ) {
       powerUp.collected = true;
+
       if (powerUp.type === 'shield') {
         bird.hasShield = true;
         createParticles(powerUp.x, powerUp.y, 20, '#00FFFF');
         setTimeout(() => (bird.hasShield = false), 5000);
-      } else {
+      } else if (powerUp.type === 'multiplier') {
         bird.scoreMultiplier = 2;
         createParticles(powerUp.x, powerUp.y, 20, '#FFD700');
         setTimeout(() => (bird.scoreMultiplier = 1), 8000);
+      } else if (powerUp.type === 'slowmo') {
+        bird.slowMoActive = true;
+        createParticles(powerUp.x, powerUp.y, 20, '#9370DB');
+        setTimeout(() => (bird.slowMoActive = false), 6000);
+      } else if (powerUp.type === 'magnet') {
+        bird.magnetActive = true;
+        createParticles(powerUp.x, powerUp.y, 20, '#FF1493');
+        setTimeout(() => (bird.magnetActive = false), 7000);
+      } else if (powerUp.type === 'star') {
+        bird.invincible = true;
+        createParticles(powerUp.x, powerUp.y, 30, '#FFFF00');
+        setTimeout(() => (bird.invincible = false), 5000);
       }
+
       powerUps.splice(i, 1);
     } else if (powerUp.x < -powerUp.size) {
       powerUps.splice(i, 1);
@@ -351,13 +623,34 @@ function drawPowerUps() {
       context.stroke();
       context.fillStyle = 'rgba(0, 255, 255, 0.3)';
       context.fill();
-    } else {
+    } else if (powerUp.type === 'multiplier') {
       // Draw multiplier icon
       context.fillStyle = '#FFD700';
       context.font = 'bold 24px Arial';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       context.fillText('x2', 0, 0);
+    } else if (powerUp.type === 'slowmo') {
+      // Draw slow-mo icon
+      context.fillStyle = '#9370DB';
+      context.font = 'bold 20px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('⏱️', 0, 0);
+    } else if (powerUp.type === 'magnet') {
+      // Draw magnet icon
+      context.fillStyle = '#FF1493';
+      context.font = 'bold 24px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('🧲', 0, 0);
+    } else if (powerUp.type === 'star') {
+      // Draw invincibility star
+      context.fillStyle = '#FFFF00';
+      context.font = 'bold 28px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('⭐', 0, 0);
     }
 
     context.restore();
@@ -419,7 +712,8 @@ function flap() {
 }
 
 function increaseDifficulty() {
-  pipeSpeed += 0.5; // Øk rørhastigheten
+  basePipeSpeed += 0.5; // Øk rørhastigheten
+  pipeSpeed = basePipeSpeed;
   if (pipeGap > 75) {
     pipeGap -= 5; // Reduser avstanden mellom rørene hvis den er større enn 75
   }
@@ -448,18 +742,28 @@ function resetGame() {
   bird.invincible = false;
   bird.hasShield = false;
   bird.scoreMultiplier = 1;
+  bird.slowMoActive = false;
+  bird.magnetActive = false;
   bird.rotation = 0;
+  bird.trail = [];
   pipes = [];
   powerUps.length = 0;
+  coinsList.length = 0;
   startTime = Date.now();
   difficultyTimer = 0;
   powerUpSpawnTimer = 0;
+  coinSpawnTimer = 0;
   pipeSpeed = 2;
+  basePipeSpeed = 2;
   pipeGap = 100;
   score = 0;
+  coins = 0;
   combo = 0;
   maxCombo = 0;
   comboTimer = 0;
+  screenShake = 0;
+  screenShakeX = 0;
+  screenShakeY = 0;
   initStars();
   gameOver = false;
   gameStarted = false;
@@ -503,6 +807,23 @@ function drawBaseBird() {
     context.strokeStyle = 'rgba(0, 255, 255, 0.3)';
     context.lineWidth = 6;
     context.stroke();
+  }
+
+  // Draw magnet field if active
+  if (bird.magnetActive) {
+    context.strokeStyle = '#FF1493';
+    context.lineWidth = 2;
+    context.setLineDash([5, 5]);
+    context.beginPath();
+    context.arc(0, 0, 100, 0, Math.PI * 2);
+    context.stroke();
+    context.setLineDash([]);
+  }
+
+  // Draw star glow if invincible
+  if (bird.invincible) {
+    context.shadowColor = '#FFFF00';
+    context.shadowBlur = 20;
   }
 
   // Draw score multiplier indicator
@@ -581,7 +902,7 @@ function updatePipes() {
 }
 
 function drawPipes() {
-  pipes.forEach((pipe) => {
+  pipes.forEach((pipe, index) => {
     pipe.x -= pipeSpeed;
     if (!pipe.scored && pipe.x + pipeWidth < bird.x) {
       const points = 1 * bird.scoreMultiplier;
@@ -603,7 +924,24 @@ function drawPipes() {
         createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, combo * 5, '#FF4500');
       }
     }
-    context.fillStyle = pipeColor;
+
+    // Rainbow pipes effect
+    const hue = (index * 30 + Date.now() / 50) % 360;
+    context.fillStyle = `hsl(${hue}, 70%, 50%)`;
+
+    context.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
+    context.fillRect(
+      pipe.x,
+      pipe.lowerPipeY,
+      pipeWidth,
+      canvas.height - pipe.lowerPipeY
+    );
+
+    // Add gradient effect
+    const gradient = context.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+    gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.5)`);
+    gradient.addColorStop(1, `hsla(${hue}, 70%, 40%, 0.5)`);
+    context.fillStyle = gradient;
     context.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
     context.fillRect(
       pipe.x,
@@ -643,16 +981,36 @@ function drawHUD() {
   context.strokeText(`Time: ${elapsedTime}s`, 10, 90);
   context.fillText(`Time: ${elapsedTime}s`, 10, 90);
 
+  // Coins
+  context.fillStyle = '#FFD700';
+  context.strokeText(`Coins: ${coins}`, 10, 120);
+  context.fillText(`Coins: ${coins}`, 10, 120);
+
   // Active power-up indicators
+  let yOffset = 150;
   if (bird.hasShield) {
     context.fillStyle = '#00FFFF';
-    context.strokeText('SHIELD ACTIVE', 10, 120);
-    context.fillText('SHIELD ACTIVE', 10, 120);
+    context.strokeText('🛡️ SHIELD', 10, yOffset);
+    context.fillText('🛡️ SHIELD', 10, yOffset);
+    yOffset += 30;
   }
   if (bird.scoreMultiplier > 1) {
     context.fillStyle = '#FFD700';
-    context.strokeText('2x MULTIPLIER', 10, 150);
-    context.fillText('2x MULTIPLIER', 10, 150);
+    context.strokeText('⭐ 2x MULTIPLIER', 10, yOffset);
+    context.fillText('⭐ 2x MULTIPLIER', 10, yOffset);
+    yOffset += 30;
+  }
+  if (bird.slowMoActive) {
+    context.fillStyle = '#9370DB';
+    context.strokeText('⏱️ SLOW-MO', 10, yOffset);
+    context.fillText('⏱️ SLOW-MO', 10, yOffset);
+    yOffset += 30;
+  }
+  if (bird.magnetActive) {
+    context.fillStyle = '#FF1493';
+    context.strokeText('🧲 MAGNET', 10, yOffset);
+    context.fillText('🧲 MAGNET', 10, yOffset);
+    yOffset += 30;
   }
 }
 
@@ -773,7 +1131,12 @@ const handleInput = (event) => {
 };
 
 const gameLoop = () => {
-  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  // Apply screen shake
+  updateScreenShake();
+  context.translate(screenShakeX, screenShakeY);
+
+  context.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
 
   // Draw background effects
   drawCopperBars();
@@ -786,11 +1149,20 @@ const gameLoop = () => {
   // Show start screen if game not started
   if (!gameStarted) {
     drawStartScreen();
+    context.restore();
     requestAnimationFrame(gameLoop);
     return;
   }
 
   const elapsedTime = Date.now() - startTime;
+
+  // Apply slow-mo effect to game speed
+  if (bird.slowMoActive) {
+    pipeSpeed = basePipeSpeed * 0.5;
+  } else {
+    pipeSpeed = basePipeSpeed;
+  }
+
   updateDifficulty(elapsedTime);
 
   // Spawn power-ups
@@ -799,18 +1171,30 @@ const gameLoop = () => {
     powerUpSpawnTimer = elapsedTime;
   }
 
+  // Spawn coins
+  if (elapsedTime - coinSpawnTimer >= coinSpawnInterval) {
+    spawnCoin();
+    coinSpawnTimer = elapsedTime;
+  }
+
   updateBird();
+  updateBirdTrail();
+  drawBirdTrail();
   drawBird();
   updatePipes();
   drawPipes();
   updatePowerUps();
   drawPowerUps();
+  updateCoins();
+  drawCoins();
   updateParticles();
   drawParticles();
   updateCombo();
   drawCombo();
   drawScanlines();
   drawHUD();
+  checkAchievements();
+  drawAchievementNotification();
 
   const birdRect = {
     x: bird.x,
@@ -845,20 +1229,26 @@ const gameLoop = () => {
         bird.hasShield = false;
         createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, 40, '#00FFFF');
         bird.invincible = true;
+        unlockAchievement('shield_save');
+        triggerScreenShake(10);
         setTimeout(() => (bird.invincible = false), 1000);
         return false;
       }
 
       if (bird.lives > 1) {
+        triggerScreenShake(15);
         handleNewLife();
         return false;
       } else {
         console.log('Game over');
+        triggerScreenShake(20);
         return true;
       }
     }
     return false;
   });
+
+  context.restore();
 
   if (!gameOver) {
     requestAnimationFrame(gameLoop);
@@ -893,6 +1283,7 @@ birdSprite.width = 500;
 birdSprite.height = 500;
 birdSprite.onload = () => {
   console.log('gameLoop');
+  loadAchievements();
   initStars();
   resetGame();
 
@@ -912,15 +1303,52 @@ birdSprite.src =
 const musicButton = document.getElementById('musicButton');
 if (musicButton) {
   musicButton.addEventListener('click', () => {
-    if (!modPlayer) {
-      initModPlayer();
+    if (!musicPlaying) {
+      playRetroMusic();
+      musicButton.textContent = '🎵 Next Track';
+    } else {
+      currentTrack = (currentTrack + 1) % 3;
+      musicButton.textContent = `🎵 Track ${currentTrack + 1}`;
     }
-    // Load a classic Amiga MOD file - using a free one from modarchive
-    // Using a simple approach with Web Audio instead since MOD files require special handling
-    // For now, we'll create a retro chiptune using oscillators
-    playRetroMusic();
   });
 }
+
+// Multiple chiptune tracks
+const musicTracks = [
+  // Track 1: Original melody
+  [
+    { freq: 523.25, time: 0 },    // C5
+    { freq: 587.33, time: 0.15 },  // D5
+    { freq: 659.25, time: 0.3 },   // E5
+    { freq: 783.99, time: 0.45 },  // G5
+    { freq: 659.25, time: 0.6 },   // E5
+    { freq: 587.33, time: 0.75 },  // D5
+    { freq: 523.25, time: 0.9 },   // C5
+    { freq: 440.00, time: 1.05 },  // A4
+  ],
+  // Track 2: Upbeat melody
+  [
+    { freq: 659.25, time: 0 },     // E5
+    { freq: 783.99, time: 0.1 },   // G5
+    { freq: 880.00, time: 0.2 },   // A5
+    { freq: 783.99, time: 0.3 },   // G5
+    { freq: 659.25, time: 0.4 },   // E5
+    { freq: 587.33, time: 0.5 },   // D5
+    { freq: 523.25, time: 0.6 },   // C5
+    { freq: 587.33, time: 0.7 },   // D5
+  ],
+  // Track 3: Bass heavy
+  [
+    { freq: 261.63, time: 0 },     // C4
+    { freq: 329.63, time: 0.2 },   // E4
+    { freq: 392.00, time: 0.4 },   // G4
+    { freq: 523.25, time: 0.6 },   // C5
+    { freq: 392.00, time: 0.8 },   // G4
+    { freq: 329.63, time: 1.0 },   // E4
+    { freq: 293.66, time: 1.2 },   // D4
+    { freq: 261.63, time: 1.4 },   // C4
+  ],
+];
 
 // Fallback: Create retro chiptune music with Web Audio API
 let musicPlaying = false;
@@ -937,21 +1365,10 @@ function playRetroMusic() {
     analyser.connect(modAudioContext.destination);
   }
 
-  // Create a simple Amiga-style chiptune loop
-  const notes = [
-    { freq: 523.25, time: 0 },    // C5
-    { freq: 587.33, time: 0.15 },  // D5
-    { freq: 659.25, time: 0.3 },   // E5
-    { freq: 783.99, time: 0.45 },  // G5
-    { freq: 659.25, time: 0.6 },   // E5
-    { freq: 587.33, time: 0.75 },  // D5
-    { freq: 523.25, time: 0.9 },   // C5
-    { freq: 440.00, time: 1.05 },  // A4
-  ];
-
   function playChiptuneLoop() {
     if (!modAudioContext || !analyser) return;
 
+    const notes = musicTracks[currentTrack];
     notes.forEach(note => {
       const osc = modAudioContext!.createOscillator();
       const gain = modAudioContext!.createGain();
@@ -969,7 +1386,8 @@ function playRetroMusic() {
       osc.stop(modAudioContext!.currentTime + note.time + 0.15);
     });
 
-    setTimeout(playChiptuneLoop, 1200);
+    const trackDuration = currentTrack === 0 ? 1200 : currentTrack === 1 ? 800 : 1600;
+    setTimeout(playChiptuneLoop, trackDuration);
   }
 
   playChiptuneLoop();
