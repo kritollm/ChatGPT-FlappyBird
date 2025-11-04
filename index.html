@@ -1,38 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Flappy Bird</title>
+  <title>Flappy Bird - Amiga Edition 🎵</title>
   <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #fff;
+      text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+      margin-bottom: 10px;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+      }
+      to {
+        text-shadow: 0 0 20px #ff00ff, 0 0 30px #00ffff, 0 0 40px #ff00ff;
+      }
+    }
+
     #gameContainer {
       position: relative;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+      border: 3px solid #00ffff;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 15px;
     }
+
     #canvas {
       display: block;
+      background: linear-gradient(180deg, #000428 0%, #004e92 100%);
     }
-    #restartButton {
+
+    #eqCanvas {
+      display: block;
+      background: rgba(0, 0, 0, 0.8);
+      border-top: 2px solid #00ffff;
+    }
+
+    #restartButton, #musicButton {
       position: absolute;
       z-index: 1000;
+      padding: 10px 20px;
+      font-size: 24px;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      border: 2px solid #00ffff;
+      border-radius: 5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: bold;
+      transition: all 0.3s;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    #restartButton {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      padding: 10px 20px;
-      font-size: 24px;
-      background-color: #4CAF50;
-      color: black;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
       display: none;
     }
-    #restartButton:hover {
-      background-color: #45a049;
+
+    #musicButton {
+      position: static;
+      margin-top: 10px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+    }
+
+    #restartButton:hover, #musicButton:hover {
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.8);
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    #musicButton:hover {
+      transform: scale(1.05);
+    }
+
+    .info {
+      color: #00ffff;
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+      text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
     }
   </style>
 </head>
 <body>
+  <h1>🎮 FLAPPY BIRD - AMIGA EDITION 🎵</h1>
   <div id="gameContainer">
     <canvas id="canvas" width="390" height="844"></canvas>
-     <button id="restartButton">Restart Game</button>
+    <canvas id="eqCanvas" width="390" height="100"></canvas>
+    <button id="restartButton">Restart Game</button>
+  </div>
+  <button id="musicButton">🎵 Start Chiptune Music</button>
+  <div class="info">
+    Click or press SPACE to flap | Featuring retro equalizer & particle effects!
   </div>
   <script>
     // JavaScript-koden din her

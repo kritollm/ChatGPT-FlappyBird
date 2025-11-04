@@ -8,6 +8,10 @@ const prng = seedrandom(seed);
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const context = canvas.getContext('2d');
 
+// Equalizer canvas
+const eqCanvas = document.getElementById('eqCanvas') as HTMLCanvasElement;
+const eqContext = eqCanvas.getContext('2d');
+
 const birdSprite = new Image();
 
 const bird = {
@@ -46,6 +50,141 @@ const STAR_COUNT = 50;
 
 let difficultyTimer = 0;
 let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+
+// Particle system
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+const particles: Particle[] = [];
+
+function createParticles(x: number, y: number, count: number, color: string) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x,
+      y,
+      vx: (prng() - 0.5) * 8,
+      vy: (prng() - 0.5) * 8,
+      life: 60,
+      maxLife: 60,
+      color,
+      size: prng() * 3 + 1,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.2; // gravity
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  particles.forEach((p) => {
+    const alpha = p.life / p.maxLife;
+    context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = p.color;
+    context.fillRect(p.x, p.y, p.size, p.size);
+    context.restore();
+  });
+}
+
+// MOD Player & Equalizer
+let modPlayer: any = null;
+let analyser: AnalyserNode | null = null;
+let modAudioContext: AudioContext | null = null;
+let dataArray: Uint8Array | null = null;
+let bufferLength: number = 0;
+
+function initModPlayer() {
+  // This will be initialized when chiptune2.js loads
+  if ((window as any).ChiptuneJsPlayer) {
+    modAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    analyser = modAudioContext.createAnalyser();
+    analyser.fftSize = 128;
+    bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+
+    modPlayer = new (window as any).ChiptuneJsPlayer(new (window as any).ChiptuneJsConfig(-1));
+  }
+}
+
+function loadModFile(url: string) {
+  if (!modPlayer || !analyser || !modAudioContext) {
+    console.log('MOD player not ready yet');
+    return;
+  }
+
+  fetch(url)
+    .then(response => response.arrayBuffer())
+    .then(buffer => {
+      const source = modAudioContext!.createBufferSource();
+      modPlayer.load(buffer, (loadedBuffer: AudioBuffer) => {
+        source.buffer = loadedBuffer;
+        source.connect(analyser!);
+        analyser!.connect(modAudioContext!.destination);
+        source.loop = true;
+        source.start(0);
+      });
+    })
+    .catch(err => console.error('Error loading MOD file:', err));
+}
+
+function drawEqualizer() {
+  if (!analyser || !dataArray || !eqContext) return;
+
+  // @ts-ignore - TypeScript strict type checking issue with Uint8Array
+  analyser.getByteFrequencyData(dataArray);
+
+  eqContext.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  eqContext.fillRect(0, 0, eqCanvas.width, eqCanvas.height);
+
+  const barWidth = (eqCanvas.width / bufferLength) * 2;
+  let x = 0;
+
+  for (let i = 0; i < bufferLength; i++) {
+    const barHeight = (dataArray[i] / 255) * eqCanvas.height;
+
+    // Retro color cycling effect
+    const hue = (i * 3 + Date.now() / 20) % 360;
+    eqContext.fillStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
+
+    eqContext.fillRect(
+      x,
+      eqCanvas.height - barHeight,
+      barWidth - 1,
+      barHeight
+    );
+
+    x += barWidth;
+  }
+}
+
+// CRT Scanline effect
+function drawScanlines() {
+  context.save();
+  context.globalAlpha = 0.1;
+  context.fillStyle = 'black';
+  for (let y = 0; y < canvas.height; y += 3) {
+    context.fillRect(0, y, canvas.width, 1);
+  }
+  context.restore();
+}
 
 function initStars() {
   stars.length = 0;
@@ -236,6 +375,8 @@ function drawPipes() {
       pipe.scored = true;
       playScoreBeep();
       updateHighScore();
+      // Add score particles!
+      createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, 15, '#FFD700');
     }
     context.fillStyle = pipeColor;
     context.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
@@ -268,6 +409,8 @@ function drawGameOver() {
 
 function handleNewLife() {
   bird.lives -= 1;
+  // Collision particles!
+  createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, 30, '#FF4444');
   bird.y = canvas.height / 2;
   bird.vy = 0;
   bird.invincible = true;
@@ -298,7 +441,13 @@ const gameLoop = () => {
   drawBird();
   updatePipes();
   drawPipes();
+  updateParticles();
+  drawParticles();
+  drawScanlines();
   drawHUD();
+
+  // Draw equalizer continuously
+  drawEqualizer();
 
   const birdRect = {
     x: bird.x,
@@ -368,6 +517,11 @@ birdSprite.onload = () => {
   console.log('gameLoop');
   initStars();
   resetGame();
+
+  // Initialize MOD player after a short delay (to let chiptune2.js load)
+  setTimeout(() => {
+    initModPlayer();
+  }, 1000);
 };
 birdSprite.onerror = (e) => {
   console.log('Det skjedde en feil under lasting av bildet');
@@ -375,3 +529,70 @@ birdSprite.onerror = (e) => {
 };
 birdSprite.src =
   'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/gfx/dallebird.png';
+
+// Music control button
+const musicButton = document.getElementById('musicButton');
+if (musicButton) {
+  musicButton.addEventListener('click', () => {
+    if (!modPlayer) {
+      initModPlayer();
+    }
+    // Load a classic Amiga MOD file - using a free one from modarchive
+    // Using a simple approach with Web Audio instead since MOD files require special handling
+    // For now, we'll create a retro chiptune using oscillators
+    playRetroMusic();
+  });
+}
+
+// Fallback: Create retro chiptune music with Web Audio API
+let musicPlaying = false;
+function playRetroMusic() {
+  if (musicPlaying) return;
+  musicPlaying = true;
+
+  if (!modAudioContext) {
+    modAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    analyser = modAudioContext.createAnalyser();
+    analyser.fftSize = 128;
+    bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    analyser.connect(modAudioContext.destination);
+  }
+
+  // Create a simple Amiga-style chiptune loop
+  const notes = [
+    { freq: 523.25, time: 0 },    // C5
+    { freq: 587.33, time: 0.15 },  // D5
+    { freq: 659.25, time: 0.3 },   // E5
+    { freq: 783.99, time: 0.45 },  // G5
+    { freq: 659.25, time: 0.6 },   // E5
+    { freq: 587.33, time: 0.75 },  // D5
+    { freq: 523.25, time: 0.9 },   // C5
+    { freq: 440.00, time: 1.05 },  // A4
+  ];
+
+  function playChiptuneLoop() {
+    if (!modAudioContext || !analyser) return;
+
+    notes.forEach(note => {
+      const osc = modAudioContext!.createOscillator();
+      const gain = modAudioContext!.createGain();
+
+      osc.type = 'square'; // Classic chiptune sound
+      osc.frequency.setValueAtTime(note.freq, modAudioContext!.currentTime + note.time);
+
+      gain.gain.setValueAtTime(0.1, modAudioContext!.currentTime + note.time);
+      gain.gain.exponentialRampToValueAtTime(0.01, modAudioContext!.currentTime + note.time + 0.15);
+
+      osc.connect(gain);
+      gain.connect(analyser!);
+
+      osc.start(modAudioContext!.currentTime + note.time);
+      osc.stop(modAudioContext!.currentTime + note.time + 0.15);
+    });
+
+    setTimeout(playChiptuneLoop, 1200);
+  }
+
+  playChiptuneLoop();
+}
