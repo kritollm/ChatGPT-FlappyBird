@@ -25,6 +25,9 @@ const bird = {
   spriteIndex: 0,
   lives: 3,
   invincible: false,
+  rotation: 0,
+  hasShield: false,
+  scoreMultiplier: 1,
 };
 
 const pipeWidth = 50;
@@ -37,19 +40,37 @@ let score = 0;
 let highScore = Number(localStorage.getItem('highScore')) || 0;
 let startTime = Date.now();
 let gameOver = false;
+let gameStarted = false;
+let combo = 0;
+let maxCombo = 0;
+let comboTimer = 0;
 
 interface Star {
   x: number;
   y: number;
   size: number;
   speed: number;
+  layer: number;
 }
 
 const stars: Star[] = [];
-const STAR_COUNT = 50;
+const STAR_COUNT = 80; // Increased for more layers
 
 let difficultyTimer = 0;
 let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+
+// Power-up system
+interface PowerUp {
+  x: number;
+  y: number;
+  type: 'shield' | 'multiplier';
+  size: number;
+  collected: boolean;
+}
+
+const powerUps: PowerUp[] = [];
+let powerUpSpawnTimer = 0;
+const powerUpSpawnInterval = 10000; // Spawn every 10 seconds
 
 // Particle system
 interface Particle {
@@ -186,14 +207,39 @@ function drawScanlines() {
   context.restore();
 }
 
+// Copper bar effect (classic Amiga!)
+function drawCopperBars() {
+  context.save();
+  const barHeight = 4;
+  const numBars = 8;
+  const offset = (Date.now() / 20) % (canvas.height + 100);
+
+  for (let i = 0; i < numBars; i++) {
+    const y = ((offset + i * 40) % (canvas.height + 100)) - 50;
+    const hue = (Date.now() / 30 + i * 45) % 360;
+
+    context.globalAlpha = 0.3;
+    const gradient = context.createLinearGradient(0, y, 0, y + barHeight * 4);
+    gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, 0)`);
+    gradient.addColorStop(0.5, `hsla(${hue}, 100%, 50%, 0.3)`);
+    gradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+
+    context.fillStyle = gradient;
+    context.fillRect(0, y, canvas.width, barHeight * 4);
+  }
+  context.restore();
+}
+
 function initStars() {
   stars.length = 0;
   for (let i = 0; i < STAR_COUNT; i++) {
+    const layer = Math.floor(prng() * 3); // 3 layers: 0, 1, 2
     stars.push({
       x: prng() * canvas.width,
       y: prng() * canvas.height,
-      size: prng() * 2 + 1,
-      speed: prng() * 0.5 + 0.2,
+      size: layer === 0 ? prng() * 1 + 0.5 : layer === 1 ? prng() * 2 + 1 : prng() * 3 + 2,
+      speed: layer === 0 ? prng() * 0.3 + 0.1 : layer === 1 ? prng() * 0.6 + 0.3 : prng() * 1 + 0.6,
+      layer,
     });
   }
 }
@@ -209,8 +255,10 @@ function updateStars() {
 }
 
 function drawStars() {
-  context.fillStyle = 'white';
   stars.forEach((star) => {
+    // Different opacity for different layers
+    const alpha = star.layer === 0 ? 0.4 : star.layer === 1 ? 0.7 : 1.0;
+    context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
     context.fillRect(star.x, star.y, star.size, star.size);
   });
 }
@@ -219,6 +267,127 @@ function updateHighScore() {
   if (score > highScore) {
     highScore = score;
     localStorage.setItem('highScore', highScore.toString());
+  }
+}
+
+// High score table
+interface HighScoreEntry {
+  score: number;
+  combo: number;
+  date: string;
+}
+
+function getHighScores(): HighScoreEntry[] {
+  const stored = localStorage.getItem('highScores');
+  return stored ? JSON.parse(stored) : [];
+}
+
+function saveHighScore(score: number, combo: number) {
+  const scores = getHighScores();
+  scores.push({
+    score,
+    combo,
+    date: new Date().toLocaleDateString(),
+  });
+  scores.sort((a, b) => b.score - a.score);
+  localStorage.setItem('highScores', JSON.stringify(scores.slice(0, 5)));
+}
+
+// Power-up functions
+function spawnPowerUp() {
+  const type = prng() > 0.5 ? 'shield' : 'multiplier';
+  const y = prng() * (canvas.height - 200) + 100;
+  powerUps.push({
+    x: canvas.width,
+    y,
+    type,
+    size: 30,
+    collected: false,
+  });
+}
+
+function updatePowerUps() {
+  for (let i = powerUps.length - 1; i >= 0; i--) {
+    const powerUp = powerUps[i];
+    powerUp.x -= pipeSpeed;
+
+    // Check collision with bird
+    if (
+      !powerUp.collected &&
+      Math.abs(bird.x + bird.width / 2 - powerUp.x) < powerUp.size &&
+      Math.abs(bird.y + bird.height / 2 - powerUp.y) < powerUp.size
+    ) {
+      powerUp.collected = true;
+      if (powerUp.type === 'shield') {
+        bird.hasShield = true;
+        createParticles(powerUp.x, powerUp.y, 20, '#00FFFF');
+        setTimeout(() => (bird.hasShield = false), 5000);
+      } else {
+        bird.scoreMultiplier = 2;
+        createParticles(powerUp.x, powerUp.y, 20, '#FFD700');
+        setTimeout(() => (bird.scoreMultiplier = 1), 8000);
+      }
+      powerUps.splice(i, 1);
+    } else if (powerUp.x < -powerUp.size) {
+      powerUps.splice(i, 1);
+    }
+  }
+}
+
+function drawPowerUps() {
+  powerUps.forEach((powerUp) => {
+    if (powerUp.collected) return;
+
+    context.save();
+    context.translate(powerUp.x, powerUp.y);
+    context.rotate(Date.now() / 500);
+
+    if (powerUp.type === 'shield') {
+      // Draw shield icon
+      context.strokeStyle = '#00FFFF';
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(0, 0, powerUp.size / 2, 0, Math.PI * 2);
+      context.stroke();
+      context.fillStyle = 'rgba(0, 255, 255, 0.3)';
+      context.fill();
+    } else {
+      // Draw multiplier icon
+      context.fillStyle = '#FFD700';
+      context.font = 'bold 24px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('x2', 0, 0);
+    }
+
+    context.restore();
+  });
+}
+
+// Combo system
+function updateCombo() {
+  if (comboTimer > 0) {
+    comboTimer--;
+    if (comboTimer === 0) {
+      combo = 0;
+    }
+  }
+}
+
+function drawCombo() {
+  if (combo > 1) {
+    const scale = 1 + Math.sin(Date.now() / 100) * 0.1;
+    context.save();
+    context.translate(canvas.width / 2, 150);
+    context.scale(scale, scale);
+    context.font = 'bold 48px Arial';
+    context.fillStyle = '#FFD700';
+    context.strokeStyle = '#FF4500';
+    context.lineWidth = 3;
+    context.textAlign = 'center';
+    context.strokeText(`COMBO x${combo}!`, 0, 0);
+    context.fillText(`COMBO x${combo}!`, 0, 0);
+    context.restore();
   }
 }
 
@@ -269,19 +438,31 @@ function showRestartButton() {
 
 function resetGame() {
   updateHighScore();
+  if (gameOver) {
+    saveHighScore(score, maxCombo);
+  }
   bird.lives = 3;
   bird.y = canvas.height / 2;
   bird.vy = 0;
   bird.gravity = 0.1;
   bird.invincible = false;
+  bird.hasShield = false;
+  bird.scoreMultiplier = 1;
+  bird.rotation = 0;
   pipes = [];
+  powerUps.length = 0;
   startTime = Date.now();
   difficultyTimer = 0;
+  powerUpSpawnTimer = 0;
   pipeSpeed = 2;
   pipeGap = 100;
   score = 0;
+  combo = 0;
+  maxCombo = 0;
+  comboTimer = 0;
   initStars();
   gameOver = false;
+  gameStarted = false;
   gameLoop();
 }
 
@@ -303,17 +484,49 @@ function rectsCollide(rect1, rect2) {
 
 let blinkInterval = 200; // Kontrollerer blinkhastigheten
 function drawBaseBird() {
+  context.save();
+
+  // Translate to bird center for rotation
+  context.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+
+  // Rotate based on velocity
+  bird.rotation = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, bird.vy * 0.1));
+  context.rotate(bird.rotation);
+
+  // Draw shield if active
+  if (bird.hasShield) {
+    context.strokeStyle = '#00FFFF';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.arc(0, 0, bird.width * 0.8, 0, Math.PI * 2);
+    context.stroke();
+    context.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+    context.lineWidth = 6;
+    context.stroke();
+  }
+
+  // Draw score multiplier indicator
+  if (bird.scoreMultiplier > 1) {
+    context.fillStyle = '#FFD700';
+    context.font = 'bold 16px Arial';
+    context.textAlign = 'center';
+    context.fillText('x2', 0, -bird.height);
+  }
+
+  // Draw bird sprite
   context.drawImage(
     birdSprite,
     bird.spriteIndex * bird.width,
     0,
     birdSprite.width,
     birdSprite.height,
-    bird.x,
-    bird.y,
+    -bird.width / 2,
+    -bird.height / 2,
     bird.width,
     bird.height
   );
+
+  context.restore();
 }
 
 function drawBlinkingBird() {
@@ -371,12 +584,24 @@ function drawPipes() {
   pipes.forEach((pipe) => {
     pipe.x -= pipeSpeed;
     if (!pipe.scored && pipe.x + pipeWidth < bird.x) {
-      score += 1;
+      const points = 1 * bird.scoreMultiplier;
+      score += points;
       pipe.scored = true;
+
+      // Update combo
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      comboTimer = 180; // 3 seconds at 60fps
+
       playScoreBeep();
       updateHighScore();
       // Add score particles!
       createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, 15, '#FFD700');
+
+      // Extra particles for combo
+      if (combo > 2) {
+        createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, combo * 5, '#FF4500');
+      }
     }
     context.fillStyle = pipeColor;
     context.fillRect(pipe.x, 0, pipeWidth, pipe.upperPipeY);
@@ -391,19 +616,130 @@ function drawPipes() {
 
 function drawHUD() {
   context.font = '24px Arial';
-  context.fillStyle = 'black';
+  context.fillStyle = 'white';
+  context.strokeStyle = 'black';
+  context.lineWidth = 2;
+
+  // Score with outline
+  context.strokeText(`Score: ${score}`, 10, 30);
   context.fillText(`Score: ${score}`, 10, 30);
+
+  // Lives
+  context.strokeText(`Lives: ${bird.lives}`, 10, 60);
   context.fillText(`Lives: ${bird.lives}`, 10, 60);
+
+  // High score
+  context.strokeText(`High: ${highScore}`, canvas.width - 120, 30);
   context.fillText(`High: ${highScore}`, canvas.width - 120, 30);
+
+  // Max combo
+  if (maxCombo > 0) {
+    context.strokeText(`Max Combo: ${maxCombo}`, canvas.width - 180, 60);
+    context.fillText(`Max Combo: ${maxCombo}`, canvas.width - 180, 60);
+  }
+
+  // Time
   const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+  context.strokeText(`Time: ${elapsedTime}s`, 10, 90);
   context.fillText(`Time: ${elapsedTime}s`, 10, 90);
+
+  // Active power-up indicators
+  if (bird.hasShield) {
+    context.fillStyle = '#00FFFF';
+    context.strokeText('SHIELD ACTIVE', 10, 120);
+    context.fillText('SHIELD ACTIVE', 10, 120);
+  }
+  if (bird.scoreMultiplier > 1) {
+    context.fillStyle = '#FFD700';
+    context.strokeText('2x MULTIPLIER', 10, 150);
+    context.fillText('2x MULTIPLIER', 10, 150);
+  }
+}
+
+function drawStartScreen() {
+  context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Animated title
+  const scale = 1 + Math.sin(Date.now() / 300) * 0.1;
+  context.save();
+  context.translate(canvas.width / 2, canvas.height / 3);
+  context.scale(scale, scale);
+
+  context.font = 'bold 48px Arial';
+  context.fillStyle = '#FFD700';
+  context.strokeStyle = '#FF4500';
+  context.lineWidth = 4;
+  context.textAlign = 'center';
+  context.strokeText('FLAPPY BIRD', 0, 0);
+  context.fillText('FLAPPY BIRD', 0, 0);
+
+  context.restore();
+
+  // Subtitle
+  context.font = 'bold 24px Arial';
+  context.fillStyle = '#00FFFF';
+  context.textAlign = 'center';
+  context.fillText('AMIGA EDITION', canvas.width / 2, canvas.height / 3 + 50);
+
+  // Instructions
+  context.font = '20px Arial';
+  context.fillStyle = 'white';
+  context.fillText('Click or press SPACE to start', canvas.width / 2, canvas.height / 2 + 50);
+  context.fillText('Collect power-ups!', canvas.width / 2, canvas.height / 2 + 90);
+
+  // Power-up legend
+  context.font = '16px Arial';
+  context.fillStyle = '#00FFFF';
+  context.fillText('⚫ Shield - Protect from one hit', canvas.width / 2, canvas.height / 2 + 130);
+  context.fillStyle = '#FFD700';
+  context.fillText('x2 Score Multiplier - Double points', canvas.width / 2, canvas.height / 2 + 160);
+
+  // Pulsing "Press to start"
+  const alpha = Math.sin(Date.now() / 200) * 0.5 + 0.5;
+  context.save();
+  context.globalAlpha = alpha;
+  context.font = 'bold 28px Arial';
+  context.fillStyle = '#FF00FF';
+  context.fillText('>>> PRESS SPACE TO START <<<', canvas.width / 2, canvas.height - 100);
+  context.restore();
 }
 
 function drawGameOver() {
+  context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
   context.font = '48px Arial';
-  context.fillStyle = 'red';
+  context.fillStyle = '#FF4444';
+  context.strokeStyle = 'black';
+  context.lineWidth = 4;
   context.textAlign = 'center';
-  context.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 100);
+  context.strokeText('GAME OVER', canvas.width / 2, canvas.height / 2 - 100);
+  context.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 100);
+
+  // Final stats
+  context.font = '24px Arial';
+  context.fillStyle = 'white';
+  context.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 20);
+  context.fillText(`Max Combo: ${maxCombo}`, canvas.width / 2, canvas.height / 2 + 20);
+
+  // High scores table
+  context.font = 'bold 20px Arial';
+  context.fillStyle = '#FFD700';
+  context.fillText('TOP 5 SCORES', canvas.width / 2, canvas.height / 2 + 70);
+
+  const highScores = getHighScores();
+  context.font = '16px Arial';
+  context.fillStyle = 'white';
+  highScores.slice(0, 5).forEach((entry, index) => {
+    const y = canvas.height / 2 + 100 + index * 25;
+    context.fillText(
+      `${index + 1}. ${entry.score} pts (Combo: ${entry.combo}) - ${entry.date}`,
+      canvas.width / 2,
+      y
+    );
+  });
+
   context.textAlign = 'start';
 }
 
@@ -427,27 +763,54 @@ const updateBird = () => {
 };
 
 const handleInput = (event) => {
+  if (!gameStarted) {
+    gameStarted = true;
+    startTime = Date.now();
+    return;
+  }
   bird.vy = bird.jumpPower;
   flap();
 };
 
 const gameLoop = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw background effects
+  drawCopperBars();
   updateStars();
   drawStars();
+
+  // Draw equalizer continuously
+  drawEqualizer();
+
+  // Show start screen if game not started
+  if (!gameStarted) {
+    drawStartScreen();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   const elapsedTime = Date.now() - startTime;
   updateDifficulty(elapsedTime);
+
+  // Spawn power-ups
+  if (elapsedTime - powerUpSpawnTimer >= powerUpSpawnInterval) {
+    spawnPowerUp();
+    powerUpSpawnTimer = elapsedTime;
+  }
+
   updateBird();
   drawBird();
   updatePipes();
   drawPipes();
+  updatePowerUps();
+  drawPowerUps();
   updateParticles();
   drawParticles();
+  updateCombo();
+  drawCombo();
   drawScanlines();
   drawHUD();
-
-  // Draw equalizer continuously
-  drawEqualizer();
 
   const birdRect = {
     x: bird.x,
@@ -477,6 +840,15 @@ const gameLoop = () => {
         bird.y < 0 ||
         bird.y + bird.height > canvas.height)
     ) {
+      // Check if shield is active
+      if (bird.hasShield) {
+        bird.hasShield = false;
+        createParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, 40, '#00FFFF');
+        bird.invincible = true;
+        setTimeout(() => (bird.invincible = false), 1000);
+        return false;
+      }
+
       if (bird.lives > 1) {
         handleNewLife();
         return false;
@@ -493,6 +865,7 @@ const gameLoop = () => {
   } else {
     drawGameOver();
     updateHighScore();
+    saveHighScore(score, maxCombo);
     showRestartButton();
   }
 };
@@ -500,14 +873,19 @@ const gameLoop = () => {
 canvas.addEventListener('mousedown', handleInput);
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
+    e.preventDefault();
     handleInput(e);
-    bird.gravity = 0.05;
+    if (gameStarted) {
+      bird.gravity = 0.05;
+    }
   }
 });
 
 document.addEventListener('keyup', (e) => {
   if (e.code === 'Space') {
-    bird.gravity = 0.1;
+    if (gameStarted) {
+      bird.gravity = 0.1;
+    }
   }
 });
 
