@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CYBER MINER - Network Infiltration 🌌</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    @font-face {
+      font-family: 'Cyber';
+      src: local('Courier New'), local('monospace');
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at center, #1a0033 0%, #0a0015 100%);
+      font-family: 'Cyber', 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      color: #00ffff;
+    }
+
+    /* Matrix rain background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 255, 255, 0.03) 2px,
+          rgba(0, 255, 255, 0.03) 4px
+        );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    h1 {
+      color: #00ffff;
+      text-shadow:
+        0 0 10px #00ffff,
+        0 0 20px #00ffff,
+        0 0 30px #ff00ff,
+        0 0 40px #ff00ff;
+      margin: 10px 0;
+      font-size: clamp(18px, 5vw, 36px);
+      animation: glitchTitle 3s infinite;
+      text-align: center;
+      letter-spacing: 4px;
+      z-index: 10;
+      position: relative;
+    }
+
+    @keyframes glitchTitle {
+      0%, 90%, 100% {
+        text-shadow:
+          0 0 10px #00ffff,
+          0 0 20px #00ffff,
+          0 0 30px #ff00ff;
+      }
+      92% {
+        text-shadow:
+          2px 0 10px #ff00ff,
+          -2px 0 20px #00ff00,
+          0 0 30px #00ffff;
+      }
+      94% {
+        text-shadow:
+          -2px 0 10px #00ff00,
+          2px 0 20px #ff00ff,
+          0 0 30px #00ffff;
+      }
+    }
+
+    #gameContainer {
+      position: relative;
+      box-shadow:
+        0 0 40px rgba(0, 255, 255, 0.6),
+        inset 0 0 40px rgba(255, 0, 255, 0.2);
+      border: 3px solid #00ffff;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 10px;
+      max-width: calc(100vw - 20px);
+      max-height: calc(100vh - 180px);
+      z-index: 10;
+      position: relative;
+      background: rgba(10, 0, 21, 0.9);
+    }
+
+    #canvas {
+      display: block;
+      background: linear-gradient(135deg, #0a0015 0%, #1a0033 50%, #0a0015 100%);
+      width: 100%;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .hud-item {
+      display: inline-block;
+      margin: 0 10px 5px 0;
+      padding: 5px 10px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid #00ffff;
+      border-radius: 5px;
+      font-size: clamp(12px, 2.5vw, 16px);
+      color: #00ffff;
+      text-shadow: 0 0 5px #00ffff;
+      font-weight: bold;
+    }
+
+    .hud-item.danger {
+      border-color: #ff0066;
+      color: #ff0066;
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    #controls {
+      margin: 10px;
+      text-align: center;
+      z-index: 10;
+      position: relative;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: clamp(12px, 2.5vw, 16px);
+      font-family: 'Cyber', monospace;
+      color: #00ffff;
+      background: linear-gradient(135deg, #1a0033 0%, #2a0055 100%);
+      border: 2px solid #00ffff;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: bold;
+      transition: all 0.3s;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      letter-spacing: 2px;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #2a0055 0%, #4a0088 100%);
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.6);
+      transform: scale(1.05);
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .info {
+      color: #00ffff;
+      text-align: center;
+      margin: 10px;
+      font-size: clamp(10px, 2vw, 14px);
+      text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+      max-width: 600px;
+      line-height: 1.6;
+      z-index: 10;
+      position: relative;
+    }
+
+    .info span {
+      color: #ff00ff;
+      font-weight: bold;
+    }
+
+    #gameOverScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      border: 3px solid #ff0066;
+      border-radius: 15px;
+      padding: 30px;
+      text-align: center;
+      display: none;
+      z-index: 200;
+      box-shadow: 0 0 50px rgba(255, 0, 102, 0.8);
+    }
+
+    #gameOverScreen h2 {
+      color: #ff0066;
+      font-size: clamp(24px, 5vw, 48px);
+      text-shadow: 0 0 20px #ff0066;
+      margin-bottom: 20px;
+    }
+
+    #gameOverScreen p {
+      color: #00ffff;
+      font-size: clamp(14px, 3vw, 18px);
+      margin: 10px 0;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 20px;
+        letter-spacing: 2px;
+      }
+
+      #gameContainer {
+        margin: 5px;
+        border-width: 2px;
+      }
+
+      .hud-item {
+        font-size: 11px;
+        padding: 3px 6px;
+        margin: 0 5px 3px 0;
+      }
+
+      button {
+        padding: 8px 15px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ CYBER MINER ⚡</h1>
+  <div id="gameContainer">
+    <canvas id="canvas" width="640" height="640"></canvas>
+    <div id="hud">
+      <div class="hud-item">LAYER: <span id="level">1</span></div>
+      <div class="hud-item">CORES: <span id="cores">0</span>/<span id="totalCores">0</span></div>
+      <div class="hud-item" id="timeDisplay">TIME: <span id="time">30</span></div>
+      <div class="hud-item">SCORE: <span id="score">0</span></div>
+      <div class="hud-item">COMBO: <span id="combo">0</span></div>
+    </div>
+    <div id="gameOverScreen">
+      <h2>SYSTEM BREACH</h2>
+      <p>Final Score: <span id="finalScore">0</span></p>
+      <p>Cores Collected: <span id="finalCores">0</span></p>
+      <p>Max Combo: <span id="maxCombo">0</span></p>
+      <button onclick="location.reload()">REBOOT SYSTEM</button>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="startButton">INITIATE HACK</button>
+    <button id="musicButton">🎵 ENABLE AUDIO</button>
+  </div>
+  <div class="info">
+    <span>ARROW KEYS</span> or <span>WASD</span> to move | Collect <span>ENERGY CORES</span> | Avoid <span>DATA BLOCKS</span>
+  </div>
+  <script type="module" src="index.js"></script>
+</body>
+</html>
