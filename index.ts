@@ -31,6 +31,8 @@ const bird = {
   slowMoActive: false,
   magnetActive: false,
   trail: [] as Array<{x: number, y: number, alpha: number}>,
+  wingAngle: 0,
+  wingDirection: 1,
 };
 
 const pipeWidth = 50;
@@ -169,25 +171,32 @@ function drawAchievementNotification() {
     const achievement = achievementQueue[0];
     const alpha = achievementDisplayTimer < 30 ? achievementDisplayTimer / 30 : 1;
 
+    // Position at TOP RIGHT corner - doesn't block gameplay!
+    const boxWidth = 250;
+    const boxHeight = 70;
+    const boxX = canvas.width - boxWidth - 10;
+    const boxY = 10;
+
     context.save();
     context.globalAlpha = alpha;
-    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    context.fillRect(canvas.width / 2 - 150, 200, 300, 80);
+    context.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    context.fillRect(boxX, boxY, boxWidth, boxHeight);
 
     context.strokeStyle = '#FFD700';
-    context.lineWidth = 3;
-    context.strokeRect(canvas.width / 2 - 150, 200, 300, 80);
+    context.lineWidth = 2;
+    context.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
-    context.font = 'bold 20px Arial';
+    context.font = 'bold 14px Arial';
     context.fillStyle = '#FFD700';
     context.textAlign = 'center';
-    context.fillText('🏆 ACHIEVEMENT UNLOCKED!', canvas.width / 2, 225);
+    context.fillText('🏆 ACHIEVEMENT!', boxX + boxWidth / 2, boxY + 20);
 
-    context.font = '16px Arial';
+    context.font = '13px Arial';
     context.fillStyle = 'white';
-    context.fillText(`${achievement.icon} ${achievement.name}`, canvas.width / 2, 250);
-    context.font = '12px Arial';
-    context.fillText(achievement.description, canvas.width / 2, 270);
+    context.fillText(`${achievement.icon} ${achievement.name}`, boxX + boxWidth / 2, boxY + 40);
+    context.font = '10px Arial';
+    context.fillStyle = '#aaa';
+    context.fillText(achievement.description, boxX + boxWidth / 2, boxY + 57);
 
     context.restore();
 
@@ -280,14 +289,33 @@ function drawBirdTrail() {
 
 // Coin system
 function spawnCoin() {
-  const y = prng() * (canvas.height - 200) + 100;
-  coinsList.push({
-    x: canvas.width,
-    y,
-    size: 20,
-    collected: false,
-    rotation: 0,
-  });
+  // Check if any pipes are near spawn position
+  const spawnX = canvas.width;
+  let safeToSpawn = true;
+
+  // Check all pipes to see if they're too close to spawn position
+  for (const pipe of pipes) {
+    const pipeDistance = Math.abs(pipe.x - spawnX);
+    if (pipeDistance < 150) {
+      safeToSpawn = false;
+      break;
+    }
+  }
+
+  // Only spawn if no pipes are nearby
+  if (safeToSpawn) {
+    // Spawn in middle area of screen, avoiding top and bottom
+    const safeZoneHeight = canvas.height - 300;
+    const y = prng() * safeZoneHeight + 150;
+
+    coinsList.push({
+      x: canvas.width,
+      y,
+      size: 20,
+      collected: false,
+      rotation: 0,
+    });
+  }
 }
 
 function updateCoins() {
@@ -745,6 +773,8 @@ function resetGame() {
   bird.slowMoActive = false;
   bird.magnetActive = false;
   bird.rotation = 0;
+  bird.wingAngle = 0;
+  bird.wingDirection = 1;
   bird.trail = [];
   pipes = [];
   powerUps.length = 0;
@@ -787,6 +817,21 @@ function rectsCollide(rect1, rect2) {
 }
 
 let blinkInterval = 200; // Kontrollerer blinkhastigheten
+// Update wing flapping
+function updateWingFlapping() {
+  // Flap faster when going up, slower when falling
+  const flapSpeed = bird.vy < 0 ? 0.3 : 0.15;
+
+  bird.wingAngle += flapSpeed * bird.wingDirection;
+
+  // Reverse direction at limits
+  if (bird.wingAngle > 0.5) {
+    bird.wingDirection = -1;
+  } else if (bird.wingAngle < -0.5) {
+    bird.wingDirection = 1;
+  }
+}
+
 function drawBaseBird() {
   context.save();
 
@@ -834,7 +879,34 @@ function drawBaseBird() {
     context.fillText('x2', 0, -bird.height);
   }
 
-  // Draw bird sprite
+  // Draw animated wings!
+  context.fillStyle = '#FFD700';
+  context.save();
+
+  // Left wing
+  context.translate(-bird.width / 4, 0);
+  context.rotate(bird.wingAngle);
+  context.beginPath();
+  context.ellipse(0, 0, 12, 20, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = '#FF8C00';
+  context.lineWidth = 2;
+  context.stroke();
+  context.restore();
+
+  context.save();
+  // Right wing
+  context.translate(bird.width / 4, 0);
+  context.rotate(-bird.wingAngle);
+  context.beginPath();
+  context.ellipse(0, 0, 12, 20, 0, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = '#FF8C00';
+  context.lineWidth = 2;
+  context.stroke();
+  context.restore();
+
+  // Draw bird sprite (body)
   context.drawImage(
     birdSprite,
     bird.spriteIndex * bird.width,
@@ -1178,6 +1250,7 @@ const gameLoop = () => {
   }
 
   updateBird();
+  updateWingFlapping();
   updateBirdTrail();
   drawBirdTrail();
   drawBird();
