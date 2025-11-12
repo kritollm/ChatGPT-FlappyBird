@@ -1,38 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Flappy Bird</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Flappy Bird - Amiga Edition 🎵</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      color: #fff;
+      text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+      margin: 10px 0;
+      font-size: clamp(16px, 4vw, 32px);
+      animation: glow 2s ease-in-out infinite alternate;
+      text-align: center;
+    }
+
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+      }
+      to {
+        text-shadow: 0 0 20px #ff00ff, 0 0 30px #00ffff, 0 0 40px #ff00ff;
+      }
+    }
+
     #gameContainer {
       position: relative;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+      border: 3px solid #00ffff;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 5px;
+      max-width: 100vw;
+      max-height: calc(100vh - 160px);
     }
+
     #canvas {
       display: block;
+      background: linear-gradient(180deg, #000428 0%, #004e92 100%);
+      width: 100%;
+      height: auto;
+      max-height: calc(100vh - 260px);
     }
+
+    #eqCanvas {
+      display: block;
+      background: rgba(0, 0, 0, 0.8);
+      border-top: 2px solid #00ffff;
+      width: 100%;
+      height: 60px;
+    }
+
+    #restartButton, #musicButton {
+      z-index: 1000;
+      padding: 8px 16px;
+      font-size: clamp(14px, 3vw, 20px);
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      border: 2px solid #00ffff;
+      border-radius: 5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: bold;
+      transition: all 0.3s;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
     #restartButton {
       position: absolute;
-      z-index: 1000;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      padding: 10px 20px;
-      font-size: 24px;
-      background-color: #4CAF50;
-      color: black;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
       display: none;
     }
+
+    #musicButton {
+      margin: 8px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+    }
+
+    #restartButton:hover, #musicButton:hover {
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.8);
+    }
+
     #restartButton:hover {
-      background-color: #45a049;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    #musicButton:hover {
+      transform: scale(1.05);
+    }
+
+    .info {
+      color: #00ffff;
+      text-align: center;
+      margin: 5px;
+      font-size: clamp(10px, 2vw, 14px);
+      text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 18px;
+        margin: 5px 0;
+      }
+
+      #gameContainer {
+        border-width: 2px;
+        margin: 3px;
+      }
+
+      #musicButton {
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+
+      .info {
+        font-size: 11px;
+      }
     }
   </style>
 </head>
 <body>
+  <h1>🎮 FLAPPY BIRD - AMIGA EDITION 🎵</h1>
   <div id="gameContainer">
-    <canvas id="canvas" width="390" height="844"></canvas>
-     <button id="restartButton">Restart Game</button>
+    <canvas id="canvas" width="600" height="600"></canvas>
+    <canvas id="eqCanvas" width="600" height="80"></canvas>
+    <button id="restartButton">Restart Game</button>
+  </div>
+  <button id="musicButton">🎵 Start Chiptune Music</button>
+  <div class="info">
+    Click or press SPACE to flap | Featuring retro equalizer & particle effects!
   </div>
   <script>
     // JavaScript-koden din her

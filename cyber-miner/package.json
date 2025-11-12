@@ -1,0 +1,10 @@
+{
+  "name": "cyber-miner",
+  "version": "1.0.0",
+  "description": "Original grid-based puzzle action game with cyberpunk aesthetics",
+  "private": true,
+  "dependencies": {},
+  "scripts": {
+    "start": "npx http-server ."
+  }
+}
