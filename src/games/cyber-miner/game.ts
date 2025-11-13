@@ -42,25 +42,30 @@ export default async function loadCyberMiner() {
 
         <div id="hud" style="
           position: absolute;
-          top: 10px;
-          left: 10px;
-          right: 10px;
+          top: -55px;
+          left: 0;
+          right: 0;
+          width: 100%;
           pointer-events: none;
           z-index: 100;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 5px;
         ">
-          <div style="display: inline-block; margin: 0 10px 5px 0; padding: 5px 10px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 5px; font-size: clamp(12px, 2.5vw, 16px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold;">
+          <div style="display: inline-flex; align-items: center; margin: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 4px; font-size: clamp(10px, 1.8vw, 13px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold; white-space: nowrap;">
             LEVEL: <span id="level">1</span>
           </div>
-          <div style="display: inline-block; margin: 0 10px 5px 0; padding: 5px 10px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 5px; font-size: clamp(12px, 2.5vw, 16px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold;">
+          <div style="display: inline-flex; align-items: center; margin: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 4px; font-size: clamp(10px, 1.8vw, 13px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold; white-space: nowrap;">
             CORES: <span id="cores">0</span>/<span id="totalCores">0</span>
           </div>
-          <div id="timeDisplay" style="display: inline-block; margin: 0 10px 5px 0; padding: 5px 10px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 5px; font-size: clamp(12px, 2.5vw, 16px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold;">
+          <div id="timeDisplay" style="display: inline-flex; align-items: center; margin: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 4px; font-size: clamp(10px, 1.8vw, 13px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold; white-space: nowrap;">
             TIME: <span id="time">30</span>
           </div>
-          <div style="display: inline-block; margin: 0 10px 5px 0; padding: 5px 10px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 5px; font-size: clamp(12px, 2.5vw, 16px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold;">
+          <div style="display: inline-flex; align-items: center; margin: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 4px; font-size: clamp(10px, 1.8vw, 13px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold; white-space: nowrap;">
             SCORE: <span id="score">0</span>
           </div>
-          <div style="display: inline-block; margin: 0 10px 5px 0; padding: 5px 10px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00ffff; border-radius: 5px; font-size: clamp(12px, 2.5vw, 16px); color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold;">
+          <div style="display: inline-flex; align-items: center; margin: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.8); border: 2px solid #ff00ff; border-radius: 4px; font-size: clamp(10px, 1.8vw, 13px); color: #ff00ff; text-shadow: 0 0 5px #ff00ff; font-weight: bold; white-space: nowrap;">
             COMBO: <span id="combo">0</span>
           </div>
         </div>
@@ -312,23 +317,37 @@ export default async function loadCyberMiner() {
       }
     }
 
-    const numBlocks = 15 + level * 2;
-    for (let i = 0; i < numBlocks; i++) {
-      const x = Math.floor(Math.random() * (GRID_WIDTH - 4)) + 2;
-      const y = Math.floor(Math.random() * (GRID_HEIGHT - 4)) + 2;
-      if (grid[y][x] === TileType.DIRT) {
-        grid[y][x] = TileType.DATA_BLOCK;
-      }
-    }
-
+    // Place ENERGY CORES first (priority)
     const numCores = 5 + level;
     totalCores = numCores;
     coresCollected = 0;
     for (let i = 0; i < numCores; i++) {
-      const x = Math.floor(Math.random() * (GRID_WIDTH - 4)) + 2;
-      const y = Math.floor(Math.random() * (GRID_HEIGHT - 4)) + 2;
-      if (grid[y][x] === TileType.DIRT) {
-        grid[y][x] = TileType.ENERGY_CORE;
+      let placed = false;
+      let attempts = 0;
+      while (!placed && attempts < 50) {
+        const x = Math.floor(Math.random() * (GRID_WIDTH - 4)) + 2;
+        const y = Math.floor(Math.random() * (GRID_HEIGHT - 4)) + 2;
+        if (grid[y][x] === TileType.DIRT) {
+          grid[y][x] = TileType.ENERGY_CORE;
+          placed = true;
+        }
+        attempts++;
+      }
+    }
+
+    // Then place DATA_BLOCKS on remaining DIRT
+    const numBlocks = 15 + level * 2;
+    for (let i = 0; i < numBlocks; i++) {
+      let placed = false;
+      let attempts = 0;
+      while (!placed && attempts < 50) {
+        const x = Math.floor(Math.random() * (GRID_WIDTH - 4)) + 2;
+        const y = Math.floor(Math.random() * (GRID_HEIGHT - 4)) + 2;
+        if (grid[y][x] === TileType.DIRT) {
+          grid[y][x] = TileType.DATA_BLOCK;
+          placed = true;
+        }
+        attempts++;
       }
     }
 
@@ -373,6 +392,15 @@ export default async function loadCyberMiner() {
       if (combo > maxCombo) maxCombo = combo;
       createParticles(newX * GRID_SIZE + GRID_SIZE / 2, newY * GRID_SIZE + GRID_SIZE / 2, 20, '#00ffff');
       playCollectSound();
+      player.x = newX;
+      player.y = newY;
+      // Remove core with slight delay to prevent instant falling object crush
+      setTimeout(() => {
+        grid[newY][newX] = TileType.EMPTY;
+        checkFalling();
+      }, 50);
+      updateHUD();
+      return;
     } else {
       combo = 0;
     }
@@ -382,8 +410,8 @@ export default async function loadCyberMiner() {
 
     if (targetTile === TileType.DIRT) {
       createParticles(newX * GRID_SIZE + GRID_SIZE / 2, newY * GRID_SIZE + GRID_SIZE / 2, 8, '#9370db');
+      grid[newY][newX] = TileType.EMPTY;
     }
-    grid[newY][newX] = TileType.EMPTY;
 
     updateHUD();
     checkFalling();
@@ -607,28 +635,37 @@ export default async function loadCyberMiner() {
   function drawExit(x: number, y: number) {
     const time = Date.now() / 1000;
     const active = coresCollected >= totalCores;
-    const color = active ? '#00ff00' : '#666666';
+    const color = active ? '#00ff00' : '#ff0066';
     ctx.save();
     ctx.translate(x + GRID_SIZE / 2, y + GRID_SIZE / 2);
+
     if (active) {
-      ctx.shadowBlur = 30;
+      ctx.shadowBlur = 40;
       ctx.shadowColor = '#00ff00';
       const rotate = time * 2;
       ctx.rotate(rotate);
+    } else {
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#ff0066';
     }
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(0, 0, GRID_SIZE / 3, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(0, 0, GRID_SIZE / 4, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.restore();
-  }
 
-  function drawPlayer() {
+    // Draw indicator dot instead of text for cleaner look
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  } function drawPlayer() {
     const time = Date.now() / 500;
     player.glowPhase = Math.sin(time) * 0.3 + 0.7;
     const px = player.x * GRID_SIZE + GRID_SIZE / 2;
@@ -658,7 +695,8 @@ export default async function loadCyberMiner() {
     document.getElementById('level')!.textContent = level.toString();
     document.getElementById('cores')!.textContent = coresCollected.toString();
     document.getElementById('totalCores')!.textContent = totalCores.toString();
-    document.getElementById('time')!.textContent = Math.ceil(timeLeft).toString();
+    const timeValue = Math.max(0, Math.ceil(timeLeft));
+    document.getElementById('time')!.textContent = timeValue.toString();
     document.getElementById('score')!.textContent = score.toString();
     document.getElementById('combo')!.textContent = combo.toString();
 
@@ -666,9 +704,11 @@ export default async function loadCyberMiner() {
     if (timeLeft < 10) {
       timeDisplay.style.borderColor = '#ff0066';
       timeDisplay.style.color = '#ff0066';
+      timeDisplay.style.textShadow = '0 0 10px #ff0066';
     } else {
       timeDisplay.style.borderColor = '#00ffff';
       timeDisplay.style.color = '#00ffff';
+      timeDisplay.style.textShadow = '0 0 5px #00ffff';
     }
   }
 
@@ -761,17 +801,21 @@ export default async function loadCyberMiner() {
   function playCollectSound() {
     if (!musicEnabled || !audioContext) return;
 
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(880, audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, audioContext.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    osc.start();
-    osc.stop(audioContext.currentTime + 0.1);
+    try {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, audioContext.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, audioContext.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+    } catch (e) {
+      // Silently fail if audio has issues
+    }
   }
 
   function playVictorySound() {

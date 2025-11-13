@@ -131,6 +131,11 @@ class ArcadeHub {
       (window as any).Howler.stop();
     }
 
+    // Stop music
+    if (typeof window !== 'undefined' && (window as any).stopMusic) {
+      (window as any).stopMusic();
+    }
+
     // Show menu
     this.showMenu();
   }

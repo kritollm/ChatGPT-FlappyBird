@@ -191,6 +191,15 @@ function movePlayer(dx: number, dy: number) {
     if (combo > maxCombo) maxCombo = combo;
     createParticles(newX * GRID_SIZE + GRID_SIZE / 2, newY * GRID_SIZE + GRID_SIZE / 2, 20, '#00ffff');
     playCollectSound();
+    player.x = newX;
+    player.y = newY;
+    // Remove core with slight delay to prevent instant falling object crush
+    setTimeout(() => {
+      grid[newY][newX] = TileType.EMPTY;
+      checkFalling();
+    }, 50);
+    updateHUD();
+    return;
   } else {
     // Reset combo if not collecting
     combo = 0;
@@ -200,12 +209,11 @@ function movePlayer(dx: number, dy: number) {
   player.x = newX;
   player.y = newY;
 
-  // Remove dirt/core
+  // Remove dirt
   if (targetTile === TileType.DIRT) {
     createParticles(newX * GRID_SIZE + GRID_SIZE / 2, newY * GRID_SIZE + GRID_SIZE / 2, 8, '#9370db');
+    grid[newY][newX] = TileType.EMPTY;
   }
-
-  grid[newY][newX] = TileType.EMPTY;
 
   // Update HUD
   updateHUD();
@@ -615,21 +623,25 @@ function setupControls() {
 function playCollectSound() {
   if (!musicEnabled || !audioContext) return;
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  try {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
 
-  osc.type = 'square';
-  osc.frequency.setValueAtTime(880, audioContext.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(1320, audioContext.currentTime + 0.1);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, audioContext.currentTime + 0.1);
 
-  gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
 
-  osc.connect(gain);
-  gain.connect(audioContext.destination);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
 
-  osc.start();
-  osc.stop(audioContext.currentTime + 0.1);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.1);
+  } catch (e) {
+    // Silently fail if audio has issues
+  }
 }
 
 function playVictorySound() {

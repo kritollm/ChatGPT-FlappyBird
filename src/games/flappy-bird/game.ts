@@ -515,6 +515,13 @@ export default async function loadFlappyBird() {
     }
   }
 
+  (window as any).stopMusic = () => {
+    if (modAudioContext && modAudioContext.state === 'running') {
+      modAudioContext.suspend();
+    }
+    musicPlaying = false;
+  };
+
   function drawEqualizer() {
     if (!analyser || !dataArray || !eqContext) return;
 
@@ -733,12 +740,12 @@ export default async function loadFlappyBird() {
     if (combo > 1) {
       const scale = 1 + Math.sin(Date.now() / 100) * 0.1;
       context.save();
-      context.translate(canvas.width / 2, 150);
+      context.translate(canvas.width / 2, canvas.height - 100); // Flyttet til bunnen
       context.scale(scale, scale);
-      context.font = 'bold 48px Arial';
+      context.font = 'bold 36px Arial'; // Mindre font
       context.fillStyle = '#FFD700';
       context.strokeStyle = '#FF4500';
-      context.lineWidth = 3;
+      context.lineWidth = 2;
       context.textAlign = 'center';
       context.strokeText(`COMBO x${combo}!`, 0, 0);
       context.fillText(`COMBO x${combo}!`, 0, 0);
