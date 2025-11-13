@@ -131,6 +131,48 @@ export default async function loadThunderStrike() {
         ">⚡ RESTART ⚡</button>
       </div>
 
+      <!-- Touch Controls -->
+      <div id="touchControls" style="
+        display: none;
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        z-index: 1000;
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 10px;">
+            <button class="touch-btn" data-dir="left" style="
+              width: 60px; height: 60px; background: rgba(0, 255, 255, 0.8); border: 2px solid #00FFFF; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">⬅️</button>
+            <button class="touch-btn" data-dir="right" style="
+              width: 60px; height: 60px; background: rgba(0, 255, 255, 0.8); border: 2px solid #00FFFF; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">➡️</button>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="touch-btn" data-dir="up" style="
+              width: 60px; height: 60px; background: rgba(0, 255, 255, 0.8); border: 2px solid #00FFFF; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">⬆️</button>
+            <button class="touch-btn" data-dir="down" style="
+              width: 60px; height: 60px; background: rgba(0, 255, 255, 0.8); border: 2px solid #00FFFF; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">⬇️</button>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="touch-btn" data-dir="shoot" style="
+              width: 80px; height: 60px; background: rgba(255, 0, 255, 0.8); border: 2px solid #FF00FF; border-radius: 10px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">🔫 SHOOT</button>
+            <button class="touch-btn" data-dir="pause" style="
+              width: 80px; height: 60px; background: rgba(255, 215, 0, 0.8); border: 2px solid #FFD700; border-radius: 10px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; pointer-events: auto; touch-action: manipulation;
+            ">⏸️ PAUSE</button>
+          </div>
+        </div>
+      </div>
+
       <button id="musicButton" style="
         margin: 10px;
         padding: 12px 24px;
@@ -159,7 +201,7 @@ export default async function loadThunderStrike() {
         z-index: 10;
         position: relative;
       ">
-        🎮 ARROWS/WASD: Move • SPACE: Fire • Destroy the alien invasion! 🎮
+        🎮 ARROWS/WASD: Move • SPACE: Fire • P/ESC: Pause • Destroy the alien invasion! 🎮
       </div>
     </div>
   `;
@@ -292,6 +334,8 @@ export default async function loadThunderStrike() {
   let screenShake = 0;
   let screenShakeX = 0;
   let screenShakeY = 0;
+
+  let paused = false;
 
   const keys: { [key: string]: boolean } = {};
 
@@ -1297,37 +1341,25 @@ export default async function loadThunderStrike() {
     context.shadowBlur = 0;
   }
 
-  function drawGameOver() {
-    context.fillStyle = 'rgba(0, 0, 0, 0.9)';
+  function drawPauseScreen() {
+    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.font = 'bold 64px "Impact"';
-    context.fillStyle = '#FF0000';
-    context.strokeStyle = 'black';
-    context.lineWidth = 6;
-    context.shadowColor = '#FF0000';
-    context.shadowBlur = 30;
-    context.textAlign = 'center';
-    context.strokeText('GAME OVER', canvas.width / 2, canvas.height / 2 - 120);
-    context.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 120);
-
-    context.font = 'bold 28px "Impact"';
+    context.font = 'bold 48px "Impact"';
     context.fillStyle = '#FFD700';
+    context.strokeStyle = '#FF0000';
+    context.lineWidth = 4;
     context.shadowColor = '#FFD700';
-    context.fillText(`FINAL SCORE: ${score}`, canvas.width / 2, canvas.height / 2 - 30);
+    context.shadowBlur = 20;
+    context.textAlign = 'center';
+    context.strokeText('PAUSED', canvas.width / 2, canvas.height / 2 - 50);
+    context.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 50);
 
+    context.font = 'bold 24px "Impact"';
     context.fillStyle = '#00FFFF';
     context.shadowColor = '#00FFFF';
-    context.fillText(`WAVE REACHED: ${wave}`, canvas.width / 2, canvas.height / 2 + 10);
-    context.fillText(`MAX COMBO: x${maxCombo}`, canvas.width / 2, canvas.height / 2 + 50);
-    context.fillText(`ENEMIES DESTROYED: ${enemiesKilled}`, canvas.width / 2, canvas.height / 2 + 90);
-
-    if (score > highScore) {
-      context.font = 'bold 36px "Impact"';
-      context.fillStyle = '#FFD700';
-      context.shadowBlur = 40;
-      context.fillText('★ NEW HIGH SCORE! ★', canvas.width / 2, canvas.height / 2 + 150);
-    }
+    context.fillText('Press P or ESC to Resume', canvas.width / 2, canvas.height / 2 + 20);
+    context.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 60);
 
     context.textAlign = 'left';
     context.shadowBlur = 0;
@@ -1412,8 +1444,12 @@ export default async function loadThunderStrike() {
     lastEnemySpawn = 0;
     enemySpawnInterval = 1500;
 
+    paused = false;
+
     gameOver = false;
     gameStarted = false;
+
+    document.getElementById('touchControls')!.style.display = 'none';
 
     gameLoop();
   }
@@ -1446,6 +1482,13 @@ export default async function loadThunderStrike() {
 
     if (!gameStarted) {
       drawStartScreen();
+      context.restore();
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    if (paused) {
+      drawPauseScreen();
       context.restore();
       requestAnimationFrame(gameLoop);
       return;
@@ -1510,12 +1553,160 @@ export default async function loadThunderStrike() {
       e.preventDefault();
       if (!gameStarted) {
         gameStarted = true;
+        document.getElementById('touchControls')!.style.display = 'block';
+      }
+    }
+
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (gameStarted && !gameOver) {
+        paused = !paused;
+      }
+    }
+
+    if (e.key === 'r' || e.key === 'R') {
+      if (paused) {
+        paused = false;
+        resetGame();
       }
     }
   });
 
   document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
+  });
+
+  // Touch controls
+  document.querySelectorAll('.touch-btn').forEach((btn) => {
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const dir = (e.target as HTMLElement).dataset.dir;
+      switch (dir) {
+        case 'left':
+          keys['ArrowLeft'] = true;
+          keys['a'] = true;
+          keys['A'] = true;
+          break;
+        case 'right':
+          keys['ArrowRight'] = true;
+          keys['d'] = true;
+          keys['D'] = true;
+          break;
+        case 'up':
+          keys['ArrowUp'] = true;
+          keys['w'] = true;
+          keys['W'] = true;
+          break;
+        case 'down':
+          keys['ArrowDown'] = true;
+          keys['s'] = true;
+          keys['S'] = true;
+          break;
+        case 'shoot':
+          keys[' '] = true;
+          break;
+        case 'pause':
+          if (gameStarted && !gameOver) {
+            paused = !paused;
+          }
+          break;
+      }
+    });
+
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const dir = (e.target as HTMLElement).dataset.dir;
+      switch (dir) {
+        case 'left':
+          keys['ArrowLeft'] = false;
+          keys['a'] = false;
+          keys['A'] = false;
+          break;
+        case 'right':
+          keys['ArrowRight'] = false;
+          keys['d'] = false;
+          keys['D'] = false;
+          break;
+        case 'up':
+          keys['ArrowUp'] = false;
+          keys['w'] = false;
+          keys['W'] = false;
+          break;
+        case 'down':
+          keys['ArrowDown'] = false;
+          keys['s'] = false;
+          keys['S'] = false;
+          break;
+        case 'shoot':
+          keys[' '] = false;
+          break;
+      }
+    });
+
+    // Also handle mouse for desktop testing
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const dir = (e.target as HTMLElement).dataset.dir;
+      switch (dir) {
+        case 'left':
+          keys['ArrowLeft'] = true;
+          keys['a'] = true;
+          keys['A'] = true;
+          break;
+        case 'right':
+          keys['ArrowRight'] = true;
+          keys['d'] = true;
+          keys['D'] = true;
+          break;
+        case 'up':
+          keys['ArrowUp'] = true;
+          keys['w'] = true;
+          keys['W'] = true;
+          break;
+        case 'down':
+          keys['ArrowDown'] = true;
+          keys['s'] = true;
+          keys['S'] = true;
+          break;
+        case 'shoot':
+          keys[' '] = true;
+          break;
+        case 'pause':
+          if (gameStarted && !gameOver) {
+            paused = !paused;
+          }
+          break;
+      }
+    });
+
+    btn.addEventListener('mouseup', (e) => {
+      e.preventDefault();
+      const dir = (e.target as HTMLElement).dataset.dir;
+      switch (dir) {
+        case 'left':
+          keys['ArrowLeft'] = false;
+          keys['a'] = false;
+          keys['A'] = false;
+          break;
+        case 'right':
+          keys['ArrowRight'] = false;
+          keys['d'] = false;
+          keys['D'] = false;
+          break;
+        case 'up':
+          keys['ArrowUp'] = false;
+          keys['w'] = false;
+          keys['W'] = false;
+          break;
+        case 'down':
+          keys['ArrowDown'] = false;
+          keys['s'] = false;
+          keys['S'] = false;
+          break;
+        case 'shoot':
+          keys[' '] = false;
+          break;
+      }
+    });
   });
 
   // Epic retro music

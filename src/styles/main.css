@@ -265,6 +265,11 @@ body::before {
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
+  #app {
+    justify-content: flex-start;
+    padding-top: 20px;
+  }
+
   .menu-title {
     letter-spacing: 4px;
     margin-bottom: 30px;
@@ -289,6 +294,11 @@ body::before {
 
 /* Landscape mobile */
 @media (max-height: 500px) and (orientation: landscape) {
+  #app {
+    justify-content: flex-start;
+    padding-top: 10px;
+  }
+
   .menu-container {
     padding: 10px;
   }

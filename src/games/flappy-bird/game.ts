@@ -168,6 +168,8 @@ export default async function loadFlappyBird() {
   let screenShakeX = 0;
   let screenShakeY = 0;
 
+  let paused = false;
+
   let currentTrack = 0;
 
   interface Star {
@@ -853,6 +855,7 @@ export default async function loadFlappyBird() {
     initStars();
     gameOver = false;
     gameStarted = false;
+    paused = false;
     gameLoop();
   }
 
@@ -1140,19 +1143,20 @@ export default async function loadFlappyBird() {
     context.font = '20px Arial';
     context.fillStyle = 'white';
     context.fillText('Klikk eller trykk SPACE for å starte', canvas.width / 2, canvas.height / 2 + 50);
-    context.fillText('Samle power-ups!', canvas.width / 2, canvas.height / 2 + 90);
+    context.fillText('P/ESC for pause, R for restart', canvas.width / 2, canvas.height / 2 + 80);
+    context.fillText('Samle power-ups!', canvas.width / 2, canvas.height / 2 + 110);
 
     context.font = '14px Arial';
     context.fillStyle = '#00FFFF';
-    context.fillText('🛡️ Shield - Beskytter mot ett treff', canvas.width / 2, canvas.height / 2 + 130);
+    context.fillText('🛡️ Shield - Beskytter mot ett treff', canvas.width / 2, canvas.height / 2 + 150);
     context.fillStyle = '#FFD700';
-    context.fillText('x2 Score Multiplier - Doble poeng', canvas.width / 2, canvas.height / 2 + 155);
+    context.fillText('x2 Score Multiplier - Doble poeng', canvas.width / 2, canvas.height / 2 + 175);
     context.fillStyle = '#FF1493';
-    context.fillText('🧲 Magnet - Tiltrekker mynter automatisk', canvas.width / 2, canvas.height / 2 + 180);
+    context.fillText('🧲 Magnet - Tiltrekker mynter automatisk', canvas.width / 2, canvas.height / 2 + 200);
     context.fillStyle = '#9370DB';
-    context.fillText('⏱️ Slow-Mo - Senker farten på spillet', canvas.width / 2, canvas.height / 2 + 205);
+    context.fillText('⏱️ Slow-Mo - Senker farten på spillet', canvas.width / 2, canvas.height / 2 + 225);
     context.fillStyle = '#FFFF00';
-    context.fillText('⭐ Star - Gjør deg usårbar i 5 sekunder', canvas.width / 2, canvas.height / 2 + 230);
+    context.fillText('⭐ Star - Gjør deg usårbar i 5 sekunder', canvas.width / 2, canvas.height / 2 + 250);
 
     const alpha = Math.sin(Date.now() / 200) * 0.5 + 0.5;
     context.save();
@@ -1193,6 +1197,26 @@ export default async function loadFlappyBird() {
     });
 
     context.textAlign = 'start';
+  }
+
+  function drawPauseScreen() {
+    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.font = 'bold 48px Arial';
+    context.fillStyle = '#FFD700';
+    context.strokeStyle = '#FF4500';
+    context.lineWidth = 4;
+    context.textAlign = 'center';
+    context.strokeText('PAUSED', canvas.width / 2, canvas.height / 2 - 50);
+    context.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 50);
+
+    context.font = 'bold 24px Arial';
+    context.fillStyle = '#00FFFF';
+    context.fillText('Press P or ESC to Resume', canvas.width / 2, canvas.height / 2 + 20);
+    context.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 60);
+
+    context.textAlign = 'left';
   }
 
   function handleNewLife() {
@@ -1237,6 +1261,13 @@ export default async function loadFlappyBird() {
 
     if (!gameStarted) {
       drawStartScreen();
+      context.restore();
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    if (paused) {
+      drawPauseScreen();
       context.restore();
       requestAnimationFrame(gameLoop);
       return;
@@ -1356,6 +1387,19 @@ export default async function loadFlappyBird() {
       handleInput();
       if (gameStarted) {
         bird.gravity = 0.05;
+      }
+    }
+
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (gameStarted && !gameOver) {
+        paused = !paused;
+      }
+    }
+
+    if (e.key === 'r' || e.key === 'R') {
+      if (paused) {
+        paused = false;
+        resetGame();
       }
     }
   });

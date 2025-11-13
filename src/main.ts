@@ -62,6 +62,7 @@ class ArcadeHub {
 
   private showMenu(): void {
     this.currentGame = null;
+    document.body.style.overflow = 'auto'; // Allow scrolling on mobile menu
     this.app.innerHTML = `
       <div class="menu-container">
         <h1 class="menu-title" data-text="ARCADE HUB">
@@ -98,6 +99,7 @@ class ArcadeHub {
     if (!game) return;
 
     this.currentGame = gameId;
+    document.body.style.overflow = 'hidden'; // Prevent scrolling during games
 
     // Show loading
     this.app.innerHTML = `
@@ -155,6 +157,8 @@ class ArcadeHub {
     if (typeof window !== 'undefined' && (window as any).stopMusic) {
       (window as any).stopMusic();
     }
+
+    document.body.style.overflow = 'auto'; // Allow scrolling back in menu
 
     // Show menu
     this.showMenu();
