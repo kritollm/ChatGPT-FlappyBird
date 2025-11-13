@@ -120,20 +120,23 @@
       left: 10px;
       right: 10px;
       pointer-events: none;
-      z-index: 100;
+      z-index: 1000;
+      display: block !important;
+      visibility: visible !important;
     }
 
     .hud-item {
       display: inline-block;
       margin: 0 10px 5px 0;
-      padding: 5px 10px;
-      background: rgba(0, 0, 0, 0.8);
-      border: 2px solid #00ffff;
+      padding: 8px 14px;
+      background: rgba(0, 0, 0, 0.95);
+      border: 3px solid #00ffff;
       border-radius: 5px;
-      font-size: clamp(12px, 2.5vw, 16px);
+      font-size: clamp(14px, 2.5vw, 18px);
       color: #00ffff;
-      text-shadow: 0 0 5px #00ffff;
+      text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
       font-weight: bold;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.6), inset 0 0 10px rgba(0, 255, 255, 0.2);
     }
 
     .hud-item.danger {
