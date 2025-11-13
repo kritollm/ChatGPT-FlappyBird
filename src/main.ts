@@ -28,6 +28,16 @@ const games: Game[] = [
       const { default: loadGame } = await import('./games/cyber-miner/game');
       await loadGame();
     }
+  },
+  {
+    id: 'space-blaster',
+    title: 'SPACE BLASTER',
+    icon: '👾',
+    description: '80-talls arcade shoot em up - ødelegg fiender, samle power-ups, overlev bølger!',
+    load: async () => {
+      const { default: loadGame } = await import('./games/space-blaster/game');
+      await loadGame();
+    }
   }
 ];
 
