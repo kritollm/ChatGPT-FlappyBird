@@ -30,6 +30,16 @@ const games: Game[] = [
     }
   },
   {
+    id: 'thunder-strike',
+    title: 'THUNDER STRIKE',
+    icon: '⚡',
+    description: 'EPISK 90-talls shoot em up! Romskip, eksplo sjoner, power-ups og boss-kamper!',
+    load: async () => {
+      const { default: loadGame } = await import('./games/thunder-strike/game');
+      await loadGame();
+    }
+  },
+  {
     id: 'space-blaster',
     title: 'SPACE BLASTER',
     icon: '👾',

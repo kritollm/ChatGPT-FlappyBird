@@ -39,6 +39,8 @@ const player = {
     moving: false,
     animFrame: 0,
     glowPhase: 0,
+    invincible: false,
+    invincibleTimer: 0,
 };
 const particles = [];
 // Falling objects tracking
@@ -94,7 +96,9 @@ function generateLevel() {
     for (let i = 0; i < numBlocks; i++) {
         const x = Math.floor(Math.random() * (GRID_WIDTH - 4)) + 2;
         const y = Math.floor(Math.random() * (GRID_HEIGHT - 4)) + 2;
-        if (grid[y][x] === TileType.DIRT) {
+        // Don't place blocks near player starting position (within 3 tiles)
+        const distFromPlayer = Math.abs(x - player.x) + Math.abs(y - player.y);
+        if (grid[y][x] === TileType.DIRT && distFromPlayer > 3) {
             grid[y][x] = TileType.DATA_BLOCK;
         }
     }
@@ -114,6 +118,9 @@ function generateLevel() {
     // Reset timer
     timeLeft = LEVEL_TIME;
     combo = 0;
+    // Give player brief invincibility at start
+    player.invincible = true;
+    player.invincibleTimer = 120; // 2 seconds at 60fps
     // Update HUD
     updateHUD();
 }
@@ -202,8 +209,8 @@ function updateFalling() {
     toMove.forEach(move => {
         grid[move.fromY][move.fromX] = TileType.EMPTY;
         grid[move.toY][move.toX] = move.type;
-        // Check if crushes player
-        if (move.toX === player.x && move.toY === player.y) {
+        // Check if crushes player (only if not invincible)
+        if (!player.invincible && move.toX === player.x && move.toY === player.y) {
             playerDie();
         }
     });
@@ -418,14 +425,29 @@ function drawPlayer() {
     const py = player.y * GRID_SIZE + GRID_SIZE / 2;
     ctx.save();
     ctx.translate(px, py);
+    // Flash when invincible
+    if (player.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
+        ctx.globalAlpha = 0.5;
+    }
+    // Shield effect when invincible
+    if (player.invincible) {
+        ctx.strokeStyle = '#ffff00';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(0, 0, GRID_SIZE / 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
     // Glow effect
     ctx.shadowBlur = 30 * player.glowPhase;
-    ctx.shadowColor = '#ff00ff';
+    ctx.shadowColor = player.invincible ? '#ffff00' : '#ff00ff';
     // Main body - circle
     ctx.beginPath();
     ctx.arc(0, 0, GRID_SIZE / 3, 0, Math.PI * 2);
     const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, GRID_SIZE / 3);
-    gradient.addColorStop(0, '#ff00ff');
+    gradient.addColorStop(0, player.invincible ? '#ffff00' : '#ff00ff');
     gradient.addColorStop(0.7, '#00ffff');
     gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
     ctx.fillStyle = gradient;
@@ -592,6 +614,13 @@ function gameLoop(timestamp) {
     const deltaTime = timestamp - lastTime;
     lastTime = timestamp;
     if (gameStarted && !gameOver) {
+        // Update invincibility
+        if (player.invincible && player.invincibleTimer > 0) {
+            player.invincibleTimer--;
+            if (player.invincibleTimer <= 0) {
+                player.invincible = false;
+            }
+        }
         // Update timer
         timeLeft -= deltaTime / 1000;
         if (timeLeft <= 0) {

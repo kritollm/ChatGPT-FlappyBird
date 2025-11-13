@@ -73,7 +73,7 @@ const stars: Star[] = [];
 const STAR_COUNT = 80; // Increased for more layers
 
 let difficultyTimer = 0;
-let difficultyInterval = 15000; // Øk vanskelighetsgraden hvert 15. sekund
+let difficultyInterval = 8000; // Øk vanskelighetsgraden hvert 8. sekund
 
 // Power-up system
 interface PowerUp {
@@ -256,22 +256,25 @@ function updateScreenShake() {
 
 // Trail effect
 function updateBirdTrail() {
-  bird.trail.push({
-    x: bird.x + bird.width / 2,
-    y: bird.y + bird.height / 2,
-    alpha: 1,
-  });
+  // Only add trail when going up or moving fast, not when falling slowly
+  if (bird.vy < 1) {
+    bird.trail.push({
+      x: bird.x + bird.width / 2,
+      y: bird.y + bird.height / 2,
+      alpha: 1,
+    });
+  }
 
   // Fade and remove old trail
   for (let i = bird.trail.length - 1; i >= 0; i--) {
-    bird.trail[i].alpha -= 0.05;
+    bird.trail[i].alpha -= 0.08; // Faster fade
     if (bird.trail[i].alpha <= 0) {
       bird.trail.splice(i, 1);
     }
   }
 
-  // Limit trail length
-  if (bird.trail.length > 15) {
+  // Shorter trail length
+  if (bird.trail.length > 8) {
     bird.trail.shift();
   }
 }
@@ -292,25 +295,53 @@ function spawnCoin() {
   // Check if any pipes are near spawn position
   const spawnX = canvas.width;
   let safeToSpawn = true;
+  let safeY = canvas.height / 2;
 
   // Check all pipes to see if they're too close to spawn position
   for (const pipe of pipes) {
     const pipeDistance = Math.abs(pipe.x - spawnX);
-    if (pipeDistance < 150) {
+    // Increase safe distance from 150 to 300 pixels
+    if (pipeDistance < 300) {
       safeToSpawn = false;
       break;
     }
   }
 
-  // Only spawn if no pipes are nearby
-  if (safeToSpawn) {
-    // Spawn in middle area of screen, avoiding top and bottom
-    const safeZoneHeight = canvas.height - 300;
-    const y = prng() * safeZoneHeight + 150;
+  // If safe to spawn, find a good Y position away from pipes
+  if (safeToSpawn && pipes.length > 0) {
+    // Find the nearest pipe to understand where gaps are
+    let nearestPipe = pipes[0];
+    for (const pipe of pipes) {
+      if (Math.abs(pipe.x - spawnX) < Math.abs(nearestPipe.x - spawnX)) {
+        nearestPipe = pipe;
+      }
+    }
 
+    // Calculate safe zone in the middle of the gap
+    const gapTop = nearestPipe.upperPipeY + 30; // Add 30px padding from pipe edge
+    const gapBottom = nearestPipe.lowerPipeY - 30; // Add 30px padding from pipe edge
+    const gapMiddle = (gapTop + gapBottom) / 2;
+    const gapHeight = gapBottom - gapTop;
+
+    // Only spawn if the gap is big enough (at least 60px after padding)
+    if (gapHeight > 60) {
+      // Spawn in the middle third of the gap for maximum safety
+      const safeZoneHeight = gapHeight / 3;
+      safeY = gapMiddle - safeZoneHeight / 2 + prng() * safeZoneHeight;
+    } else {
+      safeToSpawn = false;
+    }
+  } else if (safeToSpawn) {
+    // No pipes nearby, spawn in middle area of screen
+    const safeZoneHeight = canvas.height - 300;
+    safeY = prng() * safeZoneHeight + 150;
+  }
+
+  // Only spawn if safe
+  if (safeToSpawn) {
     coinsList.push({
       x: canvas.width,
-      y,
+      y: safeY,
       size: 20,
       collected: false,
       rotation: 0,
@@ -580,14 +611,54 @@ function saveHighScore(score: number, combo: number) {
 function spawnPowerUp() {
   const types: Array<'shield' | 'multiplier' | 'slowmo' | 'magnet' | 'star'> = ['shield', 'multiplier', 'slowmo', 'magnet', 'star'];
   const type = types[Math.floor(prng() * types.length)];
-  const y = prng() * (canvas.height - 200) + 100;
-  powerUps.push({
-    x: canvas.width,
-    y,
-    type,
-    size: 30,
-    collected: false,
-  });
+
+  // Use same safe spawning logic as coins
+  const spawnX = canvas.width;
+  let safeToSpawn = true;
+  let safeY = canvas.height / 2;
+
+  // Check all pipes to see if they're too close
+  for (const pipe of pipes) {
+    const pipeDistance = Math.abs(pipe.x - spawnX);
+    if (pipeDistance < 300) {
+      safeToSpawn = false;
+      break;
+    }
+  }
+
+  // Find safe Y position
+  if (safeToSpawn && pipes.length > 0) {
+    let nearestPipe = pipes[0];
+    for (const pipe of pipes) {
+      if (Math.abs(pipe.x - spawnX) < Math.abs(nearestPipe.x - spawnX)) {
+        nearestPipe = pipe;
+      }
+    }
+
+    const gapTop = nearestPipe.upperPipeY + 40;
+    const gapBottom = nearestPipe.lowerPipeY - 40;
+    const gapMiddle = (gapTop + gapBottom) / 2;
+    const gapHeight = gapBottom - gapTop;
+
+    if (gapHeight > 80) {
+      const safeZoneHeight = gapHeight / 3;
+      safeY = gapMiddle - safeZoneHeight / 2 + prng() * safeZoneHeight;
+    } else {
+      safeToSpawn = false;
+    }
+  } else if (safeToSpawn) {
+    safeY = prng() * (canvas.height - 200) + 100;
+  }
+
+  if (safeToSpawn) {
+    powerUps.push({
+      x: canvas.width,
+      y: safeY,
+      type,
+      size: 30,
+      collected: false,
+    });
+  }
 }
 
 function updatePowerUps() {
@@ -740,10 +811,10 @@ function flap() {
 }
 
 function increaseDifficulty() {
-  basePipeSpeed += 0.5; // Øk rørhastigheten
+  basePipeSpeed += 0.7; // Øk rørhastigheten mer aggressivt
   pipeSpeed = basePipeSpeed;
-  if (pipeGap > 75) {
-    pipeGap -= 5; // Reduser avstanden mellom rørene hvis den er større enn 75
+  if (pipeGap > 70) {
+    pipeGap -= 3; // Reduser avstanden mellom rørene raskere
   }
 }
 
