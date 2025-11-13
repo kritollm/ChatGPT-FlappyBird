@@ -389,19 +389,41 @@ export default async function loadFlappyBird() {
 
   function spawnCoin() {
     const spawnX = canvas.width;
-    let safeToSpawn = true;
+    let nearestPipe = null;
+    let minDistance = Infinity;
 
+    // Find the nearest pipe to the spawn position
     for (const pipe of pipes) {
-      const pipeDistance = Math.abs(pipe.x - spawnX);
-      if (pipeDistance < 150) {
-        safeToSpawn = false;
-        break;
+      const distance = Math.abs(pipe.x - spawnX);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPipe = pipe;
       }
     }
 
-    if (safeToSpawn) {
-      const safeZoneHeight = canvas.height - 300;
-      const y = prng() * safeZoneHeight + 150;
+    // If there's a nearby pipe (within 300px), spawn coin in its gap
+    if (nearestPipe && minDistance < 300) {
+      // Calculate the middle of the gap
+      const gapTop = nearestPipe.upperPipeY;
+      const gapBottom = nearestPipe.lowerPipeY;
+      const gapCenter = (gapTop + gapBottom) / 2;
+      const gapSize = gapBottom - gapTop;
+
+      // Spawn coin in the middle 60% of the gap to ensure it's reachable
+      const safeGapSize = gapSize * 0.6;
+      const y = gapCenter + (prng() - 0.5) * safeGapSize;
+
+      coinsList.push({
+        x: canvas.width,
+        y,
+        size: 20,
+        collected: false,
+        rotation: 0,
+      });
+    } else {
+      // No nearby pipe, spawn in the middle area of the screen
+      const safeZoneHeight = canvas.height * 0.6;
+      const y = (canvas.height - safeZoneHeight) / 2 + prng() * safeZoneHeight;
 
       coinsList.push({
         x: canvas.width,
@@ -957,19 +979,38 @@ export default async function loadFlappyBird() {
   };
 
   function getRandomGapSize() {
-    return Math.min(Math.floor(prng() * 50 + 200), 180);
+    // Ensure gap is always reasonable - minimum 180 to keep it playable
+    return Math.floor(prng() * 30 + Math.max(pipeGap, 180));
   }
 
-  const maxGapDistance = 200;
+  const maxGapVerticalChange = 120; // Maximum vertical distance the gap center can move between pipes
 
   function getRandomPipePosition() {
     const lastPipe = pipes[pipes.length - 1];
-    const minUpperPipeY = lastPipe ? lastPipe.upperPipeY + maxGapDistance : 50;
     const gapSize = getRandomGapSize();
-    const maxUpperPipeY = canvas.height / 2 - gapSize - maxGapDistance;
-    const upperPipeY = Math.floor(prng() * (maxUpperPipeY - minUpperPipeY + 1)) + minUpperPipeY;
-    const lowerPipeY = upperPipeY + gapSize + pipeWidth;
-    return [upperPipeY, lowerPipeY];
+
+    if (lastPipe) {
+      // Calculate the center of the last pipe's gap
+      const lastGapCenter = (lastPipe.upperPipeY + lastPipe.lowerPipeY) / 2;
+
+      // New gap center can move up or down by maxGapVerticalChange
+      const minGapCenter = Math.max(gapSize / 2 + 50, lastGapCenter - maxGapVerticalChange);
+      const maxGapCenter = Math.min(canvas.height - gapSize / 2 - 50, lastGapCenter + maxGapVerticalChange);
+
+      // Calculate new gap center within reachable range
+      const newGapCenter = minGapCenter + prng() * (maxGapCenter - minGapCenter);
+
+      const upperPipeY = Math.floor(newGapCenter - gapSize / 2);
+      const lowerPipeY = Math.floor(newGapCenter + gapSize / 2);
+
+      return [upperPipeY, lowerPipeY];
+    } else {
+      // First pipe - place gap in middle third of screen
+      const centerY = canvas.height / 2;
+      const upperPipeY = Math.floor(centerY - gapSize / 2);
+      const lowerPipeY = Math.floor(centerY + gapSize / 2);
+      return [upperPipeY, lowerPipeY];
+    }
   }
 
   function updatePipes() {
@@ -1101,11 +1142,17 @@ export default async function loadFlappyBird() {
     context.fillText('Klikk eller trykk SPACE for å starte', canvas.width / 2, canvas.height / 2 + 50);
     context.fillText('Samle power-ups!', canvas.width / 2, canvas.height / 2 + 90);
 
-    context.font = '16px Arial';
+    context.font = '14px Arial';
     context.fillStyle = '#00FFFF';
-    context.fillText('⚫ Shield - Beskytter mot ett treff', canvas.width / 2, canvas.height / 2 + 130);
+    context.fillText('🛡️ Shield - Beskytter mot ett treff', canvas.width / 2, canvas.height / 2 + 130);
     context.fillStyle = '#FFD700';
-    context.fillText('x2 Score Multiplier - Doble poeng', canvas.width / 2, canvas.height / 2 + 160);
+    context.fillText('x2 Score Multiplier - Doble poeng', canvas.width / 2, canvas.height / 2 + 155);
+    context.fillStyle = '#FF1493';
+    context.fillText('🧲 Magnet - Tiltrekker mynter automatisk', canvas.width / 2, canvas.height / 2 + 180);
+    context.fillStyle = '#9370DB';
+    context.fillText('⏱️ Slow-Mo - Senker farten på spillet', canvas.width / 2, canvas.height / 2 + 205);
+    context.fillStyle = '#FFFF00';
+    context.fillText('⭐ Star - Gjør deg usårbar i 5 sekunder', canvas.width / 2, canvas.height / 2 + 230);
 
     const alpha = Math.sin(Date.now() / 200) * 0.5 + 0.5;
     context.save();
