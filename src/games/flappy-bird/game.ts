@@ -747,7 +747,7 @@ export default async function loadFlappyBird() {
   }
 
   const flapSound = new Howl({
-    src: ['https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/sound/244978_3008343-lq.mp3'],
+    src: ['https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/src/sound/244978_3008343-lq.mp3'],
   });
 
   let audioCtx: AudioContext | null = null;
@@ -1406,5 +1406,5 @@ export default async function loadFlappyBird() {
   birdSprite.onerror = () => {
     console.error('Failed to load bird sprite');
   };
-  birdSprite.src = 'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/gfx/dallebird.png';
+  birdSprite.src = 'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/src/gfx/dallebird.png';
 }

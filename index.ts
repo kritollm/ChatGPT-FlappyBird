@@ -715,7 +715,7 @@ function drawCombo() {
 // Definerer lydeffekten for flakse-handlingen
 let flapSound = new Howl({
   src: [
-    'https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/sound/244978_3008343-lq.mp3',
+    'https://raw.githubusercontent.com/kritollm/ChatGPT-FlappyBird/main/src/sound/244978_3008343-lq.mp3',
   ],
   //src: ['path/to/flap-sound.mp3'] // Erstatt med riktig filsti til din lydeffekt
 });
@@ -1370,7 +1370,7 @@ birdSprite.onerror = (e) => {
   console.log(e);
 };
 birdSprite.src =
-  'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/gfx/dallebird.png';
+  'https://cdn.jsdelivr.net/gh/kritollm/ChatGPT-FlappyBird@main/src/gfx/dallebird.png';
 
 // Music control button
 const musicButton = document.getElementById('musicButton');
